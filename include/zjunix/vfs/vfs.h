@@ -72,6 +72,8 @@ struct master_boot_record {
 // 记录文件系统类型信息
 struct file_system_type {
     u8                                  *name;                  // 名称
+    struct file_system_type             *next;                  // 下一个文件系统
+    struct list_head                    fs_supers;              // 该文件系统的超级快链表
 };
 
 // 超级块
@@ -284,6 +286,9 @@ u32 vfs_cd(const u8 *);
 u32 vfs_ls(const u8 *);
 u32 vfs_rm(const u8 *);
 
+// filesystems.c
+u32 register_filesystem(struct file_system_type *);
+u32 unregister_filesystem(struct file_system_type *); 
 
 
 #endif

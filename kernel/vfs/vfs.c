@@ -15,9 +15,18 @@ struct dentry               * pwd_dentry;
 struct vfsmount             * root_mnt;
 struct vfsmount             * pwd_mnt;
 
+struct file_system_type     * file_systems;
+
 // 虚拟文件系统初始化
 u32 init_vfs(){
     u32 err;
+
+    err = init_file_systems();                  // 初始化文件系统
+    if ( IS_ERR_VALUE(err) ){
+        log(LOG_FAIL, "init_file_systems()");
+        goto vfs_init_err;
+    }
+    log(LOG_OK, "init_file_systems()");    
 
     err = vfs_read_MBR();                       // 读取主引导记录
     if ( IS_ERR_VALUE(err) ){
@@ -90,5 +99,14 @@ vfs_read_MBR_err:
     return -EIO;
 }
 
+// 初始化文件系统
+u32 init_file_systems() {
+    
+    file_systems = (struct file_system_type*) kmalloc( sizeof(struct file_system_type) );
+    if (file_systems == 0)
+        return -ENOMEM;
+
+    return 0;
+}
 
 

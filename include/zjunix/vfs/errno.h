@@ -7,6 +7,7 @@
 #define	EBADF		 9	/* Bad file number */
 #define	ENOMEM		12	/* Out of memory */
 #define	EFAULT		14	/* Bad address */
+#define EBUSY       16  /* Device or resource busy */
 #define	EEXIST		17	/* File exists */
 #define	ENOTDIR		20	/* Not a directory */
 #define	EISDIR		21	/* Is a directory */
