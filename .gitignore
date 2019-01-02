@@ -292,3 +292,5 @@ ModelManifest.xml
 
 # vscode config folder
 .vscode/
+.idea
+cmake-build-debug

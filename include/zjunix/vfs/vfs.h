@@ -242,6 +242,7 @@ struct dentry_operations {
 // vfs.c
 u32 init_vfs();
 u32 vfs_read_MBR();
+u32 init_file_systems();
 
 // open.c
 struct file * vfs_open(const u8 *, u32, u32);
