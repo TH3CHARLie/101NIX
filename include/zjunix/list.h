@@ -2,7 +2,7 @@
 #ifndef _LINUX_LIST_H
 #define _LINUX_LIST_H
 
-#include <zjunix/stddef.h>
+#include <zjunix/utils.h>
 #include <zjunix/type.h>
 /*
  * Simple doubly linked list implementation.
