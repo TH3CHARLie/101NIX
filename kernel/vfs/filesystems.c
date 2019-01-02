@@ -33,11 +33,10 @@ u32 register_filesystem(struct file_system_type * fs) {
     // TODO: lock, 
     // lockup(&file_systems_lock);
     p = find_filesystem(fs->name);
-    if (*p) {
+    if (*p)
         res = -EBUSY;
-    } else {
+    else
         *p = fs;
-    }
     
     // TODO: unlock
     // unlock(&file_systems_lock);

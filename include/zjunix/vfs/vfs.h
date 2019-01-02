@@ -76,7 +76,7 @@ struct file_system_type {
     struct list_head                    fs_supers;              // 该文件系统的超级快链表
 };
 
-// 超级块
+// 超级块，一个文件系统对应一个超级块
 struct super_block {
     u8                                  s_dirt;                 // 修改标志
     u32                                 s_blksize;              // 以字节为单位的块大小
@@ -86,16 +86,16 @@ struct super_block {
     void                                *s_fs_info;             // 指向特定文件系统的超级块信息的指针
 };
 
-// 挂载信息
+// 挂载信息，每一个安装对应一个挂载信息
 struct vfsmount {
 	struct list_head                    mnt_hash;               // 用于散列表的指针
-	struct vfsmount                     *mnt_parent;	        // 指向父文件系统， 这个文件安装在其上
+	struct vfsmount                     *mnt_parent;	        // 指向父文件系统，这个文件安装在其上
 	struct dentry                       *mnt_mountpoint;        // 指向这个文件系统安装点目录的dentry
 	struct dentry                       *mnt_root;              // 指向这个文件系统根目录的dentry
 	struct super_block                  *mnt_sb;                // 指向这个文件系统的超级块对象
 };
 
-// 已缓存的页
+// 存放inode和内存中关联的page缓存
 struct address_space {
     u32                                 a_pagesize;             // 页大小(字节)
     u32                                 *a_page;                // 文件页到逻辑页的映射表
@@ -109,13 +109,13 @@ struct inode {
     u32                                 i_ino;                  // 索引节点号
     u32                                 i_count;                // 当前的引用计数
     u32                                 i_blocks;               // 块数
-    u32                                 i_blkbits;              // 用于移位
+    u32                                 i_blkbits;              // 块的位数，用于移位
     u32                                 i_blksize;              // 块的字节数
     u32                                 i_size;                 // 对应文件的字节数
     struct list_head                    i_hash;                 // 用于散列链表的指针
     struct list_head                    i_LRU;                  // 用于LRU链表的指针
     struct list_head                    i_dentry;               // 引用索引节点的目录项链表的头
-    struct inode_operations             *i_op;                  // 操作函数
+    struct inode_operations             *i_op;                  // 索引节点的操作函数
     struct file_operations              *i_fop;                 // 对应的文件操作函数
     struct super_block                  *i_sb;                  // 指向超级块对象的指针
     struct address_space                i_data;                 // 文件的地址空间对象
@@ -137,7 +137,7 @@ struct dentry {
     struct list_head                    d_hash;                 // 指向散列表表项的指针
     struct dentry                       *d_parent;              // 父目录的目录项对象
     struct qstr                         d_name;                 // 文件名
-    struct list_head                    d_LRU;                  // 用于未使用目录项链表的指针
+    struct list_head                    d_LRU;                  // 缓存中的节点，用于未使用目录项链表的指针
     struct list_head                    d_child;                // 对目录而言，用于同一父目中目录项链表的指针
     struct list_head                    d_subdirs;              // 对目录而言，子目录项链表的头
     struct list_head                    d_alias;                // 用于与同一索引节点相关的目录项链表的指针
@@ -220,6 +220,9 @@ struct inode_operations {
     u32 (*create) (struct inode *,struct dentry *, u32, struct nameidata *);
     // 为包含在一个目录项对象中的文件名对应的索引节点查找目录
     struct dentry * (*lookup) (struct inode *,struct dentry *, struct nameidata *);
+	// mkdir
+	// rmdir
+	// mknod
 };
 
 // 已缓存的页的操作函数

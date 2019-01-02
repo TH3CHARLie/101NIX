@@ -28,11 +28,11 @@ struct vfs_page {
 
 // 缓存
 struct cache {
-    u32                         c_size;                     // 现有项数
-    u32                         c_capacity;                 // 最大项数
-    u32                         c_tablesize;                // 哈希值数
-    struct list_head            c_LRU;                      // 指向LRU链表的指针
-    struct list_head            *c_hashtable;               // 指向哈希表的指针
+    u32                         c_size;                     // 缓存现有项数
+    u32                         c_capacity;                 // 缓存最大项数
+    u32                         c_tablesize;                // 哈希表大小
+    struct list_head            c_LRU;                      // 指向LRU链表表头
+    struct list_head            *c_hashtable;               // 指向哈希表表头的数组
     struct cache_operations     *c_op;                      // 指向缓冲区的操作函数指针
 };
 
