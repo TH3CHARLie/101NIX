@@ -1,8 +1,7 @@
 #ifndef    _LINUX_RBTREE_H
 #define    _LINUX_RBTREE_H
 
-#include <zjunix/stddef.h>
-#include <zjunix/stddef.h>
+#include <zjunix/utils.h>
 
 struct rb_node
 {
