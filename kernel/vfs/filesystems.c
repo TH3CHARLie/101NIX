@@ -70,7 +70,11 @@ u32 unregister_filesystem(struct file_system_type * fs) {
     return -EINVAL;
 }
 
-void debug_print_file_systems() {
+struct file_system_type *get_fs_type(const u8 *name) {
+    return *(find_filesystem(name));
+}
+
+void print_file_systems() {
     struct file_system_type ** p;
 
     kernel_printf("file_systems:\n");

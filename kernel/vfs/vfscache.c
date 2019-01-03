@@ -372,6 +372,7 @@ void dget(struct dentry *dentry) {
     dentry->d_count += 1;
 }
 
+// 此时不需要释放dentry，等需要替换的时候cache会自动替换
 void dput(struct dentry *dentry) {
     dentry->d_count -= 1;
 }

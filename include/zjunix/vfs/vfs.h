@@ -52,6 +52,10 @@ enum {LAST_NORM, LAST_ROOT, LAST_DOT, LAST_DOTDOT, LAST_BIND};
 #define PAGE_CACHE_SHIFT                        PAGE_SHIFT
 #define PAGE_CACHE_MASK                         (~((1 << PAGE_SHIFT) - 1))
 
+// 挂载选项
+#define MS_REMOUNT 								0x0001					// 修改挂载点信息
+#define MS_MOVE									0x0002					// 移动挂载点
+
 // 文件类型
 enum {
          FT_UNKNOWN,     
@@ -73,7 +77,7 @@ struct master_boot_record {
 struct file_system_type {
     u8                                  *name;                  // 名称
     struct file_system_type             *next;                  // 下一个文件系统
-    struct list_head                    fs_supers;              // 该文件系统的超级快链表
+    struct list_head                    fs_supers;              // 该文件系统的超级块链表
 };
 
 // 超级块，一个文件系统对应一个超级块
@@ -293,6 +297,18 @@ u32 vfs_rm(const u8 *);
 // filesystems.c
 u32 register_filesystem(struct file_system_type *);
 u32 unregister_filesystem(struct file_system_type *);
-void debug_print_file_systems();
+struct file_system_type *get_fs_type(const u8 *name);
+void print_file_systems();
+
+// namespace.c
+u32 do_mount(const u8 *dev_name, const u8 *dir_name,
+			 const u8 *type_page, u32 flags);
+	u32 do_new_mount(struct nameidata *nd, const u8 *type_page,
+					 const u8 *dev_name);
+		struct vfsmount * do_kern_mount(const u8 *fstype, const u8 *dev_name);
+		u32 do_add_mount(struct vfsmount *newmnt, struct nameidata *nd,
+						 struct list_head *fslist);
+	u32 do_move_mount(struct nameidata *nd, const u8 *dev_name);
+
 
 #endif
