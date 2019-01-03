@@ -70,6 +70,21 @@ u32 unregister_filesystem(struct file_system_type * fs) {
     return -EINVAL;
 }
 
+struct super_block * get_sb(struct file_system_type * fs, const u8 * name) {
+    struct list_head    *p;
+    struct list_head    *start;
+    struct super_block  *sb;
+
+    start = &fs->fs_supers;
+    for (p = start->next; p != start; p = p->next) {
+        sb = container_of(p, struct super_block, s_instances);
+        if (kernel_strcmp(sb->s_name, name))
+            return sb;
+    }
+
+    return ERR_PTR(-EINVAL);
+}
+
 struct file_system_type *get_fs_type(const u8 *name) {
     return *(find_filesystem(name));
 }

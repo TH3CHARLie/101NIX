@@ -368,8 +368,13 @@ void pcache_write_back(void *object) {
 }
 
 // 以下为缓冲项引用变化函数
-void dget(struct dentry *dentry) {
+//void dget(struct dentry *dentry) {
+//    dentry->d_count += 1;
+//}
+
+struct dentry * dget(struct dentry *dentry) {
     dentry->d_count += 1;
+    return dentry;
 }
 
 // 此时不需要释放dentry，等需要替换的时候cache会自动替换

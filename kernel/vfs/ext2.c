@@ -53,6 +53,9 @@ struct address_space_operations ext2_address_space_operations = {
     .bmap       = ext2_bmap,
 };
 
+struct super_block * ext2_get_sb() {
+    return
+}
 
 // 初始化基地址为base（绝对扇区地址）上的EXT2文件系统
 u32 init_ext2(u32 base){
@@ -107,6 +110,8 @@ u32 init_ext2(u32 base){
     ext2_sb->s_root    = 0;
     ext2_sb->s_fs_info = (void*)ext2_BI;
     ext2_sb->s_op      = &ext2_super_operations;
+    ext2_sb->s_name    = "/dev/sd2";
+    list_add(&ext2_sb->s_instances, &ext2_fs_type->fs_supers);
 
     // 构建根目录关联的 dentry 结构
     ext2_root_dentry = (struct dentry *) kmalloc ( sizeof(struct dentry) );

@@ -132,6 +132,8 @@ u32 init_fat32(u32 base){
     fat32_sb->s_root    = 0;
     fat32_sb->s_fs_info = (void*)fat32_BI;
     fat32_sb->s_op      = &fat32_super_operations;
+    fat32_sb->s_name    = "/dev/sd1";
+    list_add(&fat32_sb->s_instances, &fat32_fs_type->fs_supers);
 
     // 构建根目录关联的 dentry 结构
     root_dentry = (struct dentry *) kmalloc ( sizeof(struct dentry) );

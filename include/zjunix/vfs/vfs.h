@@ -56,6 +56,9 @@ enum {LAST_NORM, LAST_ROOT, LAST_DOT, LAST_DOTDOT, LAST_BIND};
 #define MS_REMOUNT 								0x0001					// 修改挂载点信息
 #define MS_MOVE									0x0002					// 移动挂载点
 
+// dentry用检查
+#define IS_ROOT(x) ((x) == (x)->d_parent)
+
 // 文件类型
 enum {
          FT_UNKNOWN,     
@@ -65,6 +68,7 @@ enum {
 
 // 由于C的编译需要
 struct vfs_page;
+struct super_block;
 
 // 主引导记录
 struct master_boot_record {
@@ -83,13 +87,16 @@ struct file_system_type {
 // 超级块，一个文件系统对应一个超级块
 struct super_block {
     u8                                  s_dirt;                 // 修改标志
+	u8									s_name;					// 超级块对应的设备名
     u32                                 s_blksize;              // 以字节为单位的块大小
     struct file_system_type             *s_type;                // 文件系统类型
     struct dentry                       *s_root;                // 文件系统根目录的目录项对象
     struct super_operations             *s_op;                  // 超级块的操作函数
+	struct list_head					s_instances;			// 存于该文件系统类型的fs_supers中
     void                                *s_fs_info;             // 指向特定文件系统的超级块信息的指针
 };
 
+// TODO 需不需要加mnt_count?
 // 挂载信息，每一个安装对应一个挂载信息
 struct vfsmount {
 	struct list_head                    mnt_hash;               // 用于散列表的指针
@@ -116,6 +123,7 @@ struct inode {
     u32                                 i_blkbits;              // 块的位数，用于移位
     u32                                 i_blksize;              // 块的字节数
     u32                                 i_size;                 // 对应文件的字节数
+	u32									i_mode;					// 文件类型与文件权限（暂时未用到）
     struct list_head                    i_hash;                 // 用于散列链表的指针
     struct list_head                    i_LRU;                  // 用于LRU链表的指针
     struct list_head                    i_dentry;               // 引用索引节点的目录项链表的头
@@ -298,6 +306,7 @@ u32 vfs_rm(const u8 *);
 u32 register_filesystem(struct file_system_type *);
 u32 unregister_filesystem(struct file_system_type *);
 struct file_system_type *get_fs_type(const u8 *name);
+struct super_block * get_sb(struct file_system_type * fs, const u8 * name);
 void print_file_systems();
 
 // namespace.c
@@ -306,8 +315,8 @@ u32 do_mount(const u8 *dev_name, const u8 *dir_name,
 	u32 do_new_mount(struct nameidata *nd, const u8 *type_page,
 					 const u8 *dev_name);
 		struct vfsmount * do_kern_mount(const u8 *fstype, const u8 *dev_name);
-		u32 do_add_mount(struct vfsmount *newmnt, struct nameidata *nd,
-						 struct list_head *fslist);
+		u32 do_add_mount(struct vfsmount *newmnt, struct nameidata *nd);
+			static u32 graft_tree(struct vfsmount *mnt, struct nameidata *nd);
 	u32 do_move_mount(struct nameidata *nd, const u8 *dev_name);
 
 

@@ -75,7 +75,8 @@ void pcache_add(struct cache *, void *);
 void pcache_put_LRU(struct cache *);
 void pcache_write_back(void *);
 
-void dget(struct dentry *);
+struct dentry * dget(struct dentry *);
+//void dget(struct dentry *);
 void dput(struct dentry *);
 
 void release_dentry(struct dentry *);

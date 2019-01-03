@@ -62,14 +62,14 @@ u32 follow_mount(struct vfsmount **mnt, struct dentry **dentry){
         // 找到挂载点，更换dentry和mnt的信息
         *mnt = mounted;
         dput(*dentry);
-        *dentry = mounted->mnt_root;
-        dget(*dentry);
+        *dentry = dget(mounted->mnt_root);
 		res = 1;
     }
     
     return res;
 }
 
+// TODO 添加hash？
 // 遍历当前文件系统对象的mount链表，找到挂载点，然后更换文件系统对象
 struct vfsmount * lookup_mnt(struct vfsmount *mnt, struct dentry *dentry) {
 	struct list_head *head = &(mnt->mnt_hash);

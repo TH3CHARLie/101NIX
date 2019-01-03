@@ -19,6 +19,7 @@ struct vfsmount             * pwd_mnt;
 struct file_system_type     * file_systems;
 
 // 虚拟文件系统初始化
+// TODO init_mount_tree
 u32 init_vfs(){
     u32 err;
 
