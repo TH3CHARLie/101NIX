@@ -93,6 +93,9 @@ u32 init_ext2(u32 base){
     if (ext2_fs_type == 0)
         return -ENOMEM;
     ext2_fs_type->name = "ext2";
+    ext2_fs_type->next = NULL;
+    INIT_LIST_HEAD(&(ext2_fs_type->fs_supers));
+    register_filesystem(ext2_fs_type);
 
     // 构建 super_block 结构
     ext2_sb = (struct super_block *) kmalloc ( sizeof(struct super_block) );

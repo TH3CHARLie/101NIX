@@ -8,6 +8,7 @@
 #include <zjunix/utils.h>
 #include <driver/vga.h>
 
+// TODO 根文件系统装载重构
 // 公用全局变量
 struct master_boot_record   * MBR;
 struct dentry               * root_dentry;
@@ -102,9 +103,12 @@ vfs_read_MBR_err:
 // 初始化文件系统
 u32 init_file_systems() {
     
-    file_systems = (struct file_system_type*) kmalloc( sizeof(struct file_system_type) );
+    file_systems = (struct file_system_type *)kmalloc(sizeof(struct file_system_type));
     if (file_systems == 0)
         return -ENOMEM;
+
+    file_systems->name = "root_fs";
+    file_systems->next = NULL;
 
     return 0;
 }

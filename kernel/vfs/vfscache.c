@@ -32,7 +32,7 @@ struct cache_operations page_cache_operations = {
 u32 init_cache() {
 
     // 初始化dcache
-    dcache = (struct cache*) kmalloc ( sizeof(struct cache) );
+    dcache = (struct cache *)kmalloc(sizeof(struct cache));
     if (dcache == 0)
         goto init_cache_err;
 
@@ -40,7 +40,7 @@ u32 init_cache() {
     dcache->c_op = &dentry_cache_operations;
 
     // 初始化icache
-    icache = (struct cache*) kmalloc ( sizeof(struct cache) );
+    icache = (struct cache *)kmalloc(sizeof(struct cache));
     if (icache == 0)
         goto init_cache_err;
 
@@ -48,7 +48,7 @@ u32 init_cache() {
     icache->c_op = &inode_cache_operations;
 
     // 初始化pcache
-    pcache = (struct cache*) kmalloc ( sizeof(struct cache) );
+    pcache = (struct cache *)kmalloc(sizeof(struct cache));
     if (pcache == 0)
         goto init_cache_err;
 
@@ -78,7 +78,7 @@ void cache_init(struct cache* this, u32 capacity, u32 tablesize) {
     this->c_capacity = capacity;
     this->c_tablesize = tablesize;
     INIT_LIST_HEAD(&(this->c_LRU));
-    this->c_hashtable = (struct list_head*) kmalloc ( tablesize * sizeof(struct list_head) );
+    this->c_hashtable = (struct list_head *)kmalloc(tablesize * sizeof(struct list_head));
     for ( i = 0; i < tablesize; i++ )
         INIT_LIST_HEAD(this->c_hashtable + i);
     this->c_op = 0;

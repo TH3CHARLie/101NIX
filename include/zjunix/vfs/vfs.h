@@ -292,7 +292,7 @@ u32 vfs_rm(const u8 *);
 
 // filesystems.c
 u32 register_filesystem(struct file_system_type *);
-u32 unregister_filesystem(struct file_system_type *); 
-
+u32 unregister_filesystem(struct file_system_type *);
+void debug_print_file_systems();
 
 #endif

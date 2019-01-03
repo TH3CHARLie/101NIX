@@ -114,10 +114,13 @@ u32 init_fat32(u32 base){
                                                                                 // 因为0、1号簇没有对应任何扇区
 
     // 构建 file_system_type 结构
-    fat32_fs_type = (struct file_system_type *) kmalloc ( sizeof(struct file_system_type) );
+    fat32_fs_type = (struct file_system_type *)kmalloc(sizeof(struct file_system_type));
     if (fat32_fs_type == 0)
         return -ENOMEM;
     fat32_fs_type->name = "fat32";
+    fat32_fs_type->next = NULL;
+    INIT_LIST_HEAD(&(fat32_fs_type->fs_supers));
+    register_filesystem(fat32_fs_type);
 
     // 构建 super_block 结构
     fat32_sb = (struct super_block *) kmalloc ( sizeof(struct super_block) );
