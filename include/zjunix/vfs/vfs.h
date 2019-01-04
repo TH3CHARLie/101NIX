@@ -97,6 +97,7 @@ struct super_block {
 };
 
 // TODO 需不需要加mnt_count?
+// TODO 需不需要加mnt_child?
 // 挂载信息，每一个安装对应一个挂载信息
 struct vfsmount {
 	struct list_head                    mnt_hash;               // 用于散列表的指针

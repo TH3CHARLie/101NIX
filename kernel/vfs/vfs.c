@@ -102,6 +102,7 @@ vfs_read_MBR_err:
 }
 
 // 初始化文件系统
+// TODO init_rootfs()
 u32 init_file_systems() {
     
     file_systems = (struct file_system_type *)kmalloc(sizeof(struct file_system_type));

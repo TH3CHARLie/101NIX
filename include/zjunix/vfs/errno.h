@@ -14,6 +14,7 @@
 #define	EISDIR		21	/* Is a directory */
 #define	EINVAL		22	/* Invalid argument */
 #define	ENFILE		23	/* File table overflow */
+#define	ELOOP		62	/* Too many symbolic links encountered */
 
 #endif
 

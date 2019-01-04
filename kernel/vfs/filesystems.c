@@ -70,6 +70,14 @@ u32 unregister_filesystem(struct file_system_type * fs) {
     return -EINVAL;
 }
 
+// TODO 可以用此函数替换get_sb
+struct super_block *get_sb_bdev(struct file_system_type *fs_type,
+                                int flags, const char *dev_name, void *data,
+                                int (*fill_super)(struct super_block *, void *, int)) {
+
+    return NULL;
+}
+
 struct super_block * get_sb(struct file_system_type * fs, const u8 * name) {
     struct list_head    *p;
     struct list_head    *start;
