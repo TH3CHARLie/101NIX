@@ -1,6 +1,6 @@
 #ifndef _101NIX_PID_H_
 #define _101NIX_PID_H_
-#include "list.h"
+#include <zjunix/list.h>
 
 // ignore session id
 // since session is often used as login

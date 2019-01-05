@@ -1,6 +1,7 @@
 #include <driver/vga.h>
 #include <zjunix/utils.h>
-
+#pragma GCC push_options
+#pragma GCC optimize("O0")
 void* kernel_memcpy(void* dest, void* src, int len) {
     char* deststr = dest;
     char* srcstr = src;
@@ -12,8 +13,7 @@ void* kernel_memcpy(void* dest, void* src, int len) {
     return dest;
 }
 
-#pragma GCC push_options
-#pragma GCC optimize("O2")
+
 void* kernel_memset(void* dest, int b, int len) {
 #ifdef MEMSET_DEBUG
     kernel_printf("memset:%x,%x,len%x,", (int)dest, b, len);
@@ -29,7 +29,7 @@ void* kernel_memset(void* dest, int b, int len) {
 #endif  // ! MEMSET_DEBUG
     return dest;
 }
-#pragma GCC pop_options
+
 
 unsigned int* kernel_memset_word(unsigned int* dest, unsigned int w, int len) {
     while (len--)
@@ -51,7 +51,7 @@ char* kernel_strcpy(char* dest, const char* src) {
         ;
     return dest;
 }
-
+#pragma GCC pop_options
 int pow(int x, int z) {
     int ret = 1;
     if (z < 0)

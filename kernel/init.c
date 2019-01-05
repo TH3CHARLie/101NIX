@@ -30,12 +30,11 @@ void machine_info() {
 #pragma GCC push_options
 #pragma GCC optimize("O0")
 void create_startup_process() {
-    unsigned int init_gp;
-    asm volatile("la %0, _gp\n\t" : "=r"(init_gp));
-    pc_create(1, ps, (unsigned int)kmalloc(4096) + 4096, init_gp, "powershell");
+    int ret_pid;
+    task_create("powershell", ps, 0, 0, &ret_pid, 1);
     log(LOG_OK, "Shell init");
-    pc_create(2, system_time_proc, (unsigned int)kmalloc(4096) + 4096, init_gp, "time");
-    log(LOG_OK, "Timer init");
+    // pc_create(2, system_time_proc, (unsigned int)kmalloc(4096) + 4096, init_gp, "time");
+    // log(LOG_OK, "Timer init");
 }
 #pragma GCC pop_options
 
@@ -67,7 +66,7 @@ void init_kernel() {
     log(LOG_END, "System Calls.");
     // Process control
     log(LOG_START, "Process Control Module.");
-    init_pc();
+    init_task_module();
     create_startup_process();
     log(LOG_END, "Process Control Module.");
     // Interrupts

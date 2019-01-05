@@ -1,5 +1,5 @@
-#include "pid.h"
-#include "sched.h"
+#include <zjunix/pid.h>
+#include <zjunix/pc.h>
 
 #define PID_MAX_HASH_ENTRY 4
 
@@ -140,34 +140,34 @@ static pid_t alloc_pid_val_from_ns(struct pid_namespace *ns) {
 }
 
 
-#ifdef DEBUG
-struct pid *alloc_pid_from_ns(struct pid_namespace *ns) {
-  struct pid *pid = ();
-  enum pid_type type;
-  int i, nr;
-  struct pid_namespace *tmp;
-  struct upid *upid;
+// #ifdef DEBUG
+// struct pid *alloc_pid_from_ns(struct pid_namespace *ns) {
+//   struct pid *pid = ();
+//   enum pid_type type;
+//   int i, nr;
+//   struct pid_namespace *tmp;
+//   struct upid *upid;
 
-  tmp = ns;
-  pid->level = ns->level;
+//   tmp = ns;
+//   pid->level = ns->level;
 
-  for (i = ns->level; i >= 0; --i) {
-    nr = alloc_pidmap(tmp);
-    pid->numbers[i].nr = nr;
-    pid->numbers[i].ns = tmp;
-    tmp = tmp->parent;
-  }
+//   for (i = ns->level; i >= 0; --i) {
+//     nr = alloc_pidmap(tmp);
+//     pid->numbers[i].nr = nr;
+//     pid->numbers[i].ns = tmp;
+//     tmp = tmp->parent;
+//   }
 
-  for (type = 0; type < PIDTYPE_MAX; ++type) INIT_HLIST_HEAD(&pid->tasks[type]);
+//   for (type = 0; type < PIDTYPE_MAX; ++type) INIT_HLIST_HEAD(&pid->tasks[type]);
 
-  upid = pid->numbers + ns->level;
-  for (; upid >= pid->numbers; --upid) {
-    hlist_add_head(&upid->pid_chain,
-                   &pid_hashtable[pid_hashfn(upid->nr, upid->ns)]);
-    upid->ns->nr_hashed++;
-  }
+//   upid = pid->numbers + ns->level;
+//   for (; upid >= pid->numbers; --upid) {
+//     hlist_add_head(&upid->pid_chain,
+//                    &pid_hashtable[pid_hashfn(upid->nr, upid->ns)]);
+//     upid->ns->nr_hashed++;
+//   }
 
-  return pid;
-}
+//   return pid;
+// }
 
-#endif
+// #endif
