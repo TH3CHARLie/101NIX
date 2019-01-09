@@ -178,6 +178,7 @@ finish:
 }
 void task_create(char *task_name, void (*entry)(unsigned int argc, void *args),
                  unsigned int argc, void *args, int nice, int user_mode) {
+  unsigned int old_ie = disable_interrupts();
   union task_union *tmp = (union task_union *)kmalloc(sizeof(union task_union));
   if (tmp == 0) {
     kernel_printf("allocate fail, return\n");
@@ -222,7 +223,10 @@ void task_create(char *task_name, void (*entry)(unsigned int argc, void *args),
   }
   new_task->user_mode = user_mode;
   update_min_vruntime(&cfs_rq);
-  kernel_printf("task create %s %d vm=%x\n", new_task->name, new_task->pid);
+  kernel_printf("task create %s %d vm=%x\n", new_task->name, new_task->pid, (unsigned int)new_task->vm);
+  if (old_ie) {
+    enable_interrupts();
+  }
 }
 
 void task_kill(pid_t pid) {
@@ -237,7 +241,7 @@ void task_kill(pid_t pid) {
   list_for_each(pos, &task_all) {
     p = container_of(pos, struct task_struct, task_node);
     if (p && p->pid == pid) {
-      // kernel_printf("kill name %s vm=%x usermode=%d\n", p->name, p->)
+      kernel_printf("kill name %s vm=%x \n", p->name, (unsigned int)p->vm);
       to_be_freed = p;
       delete_task(p);
       unset_state(p);
@@ -341,36 +345,34 @@ void task_wakeup(pid_t pid) {
 void task_kill_syscall(unsigned int status, unsigned int cause,
                        context *pc_context) {}
 
-void print_rbtree(struct rb_node *tree, struct rb_node *parent, int direction)
-{
-    if(tree != NULL)
-    {
-		struct sched_entity * entity = rb_entry(tree, struct sched_entity, rb_node);
-		task_struct *task = container_of(entity, struct task_struct, se);
-        
-		if (direction==0){
-			// tree is root
-            kernel_printf( "  %s(PID : %d)(B) is root\n", task->name, (int)task->pid);
-		}
-        else{                
-			// tree is not root
-			struct sched_entity * parent_entity = rb_entry(parent, struct sched_entity, rb_node);
-			task_struct * parent_task = container_of(parent_entity, struct task_struct, se);
-            kernel_printf( "  %s(PID : %d)(%s) is %s's %s child vruntime is %d\n", task->name, 
-					(int)task->pid, rb_is_black(tree)?"B":"R", 
-					parent_task->name, direction==1?"right" : "left", entity->vruntime);
-		}
+void print_rbtree(struct rb_node *tree, struct rb_node *parent, int direction) {
+  if (tree != NULL) {
+    struct sched_entity *entity = rb_entry(tree, struct sched_entity, rb_node);
+    task_struct *task = container_of(entity, struct task_struct, se);
 
-        if (tree->rb_left)
-            print_rbtree(tree->rb_left, tree, -1);
-        if (tree->rb_right)
-            print_rbtree(tree->rb_right, tree, 1);
+    if (direction == 0) {
+      // tree is root
+      kernel_printf("  %s(PID : %d)(B) is root\n", task->name, (int)task->pid);
+    } else {
+      // tree is not root
+      struct sched_entity *parent_entity =
+          rb_entry(parent, struct sched_entity, rb_node);
+      task_struct *parent_task =
+          container_of(parent_entity, struct task_struct, se);
+      kernel_printf("  %s(PID : %d)(%s) is %s's %s child vruntime is %d\n",
+                    task->name, (int)task->pid, rb_is_black(tree) ? "B" : "R",
+                    parent_task->name, direction == 1 ? "right" : "left",
+                    entity->vruntime);
     }
+
+    if (tree->rb_left) print_rbtree(tree->rb_left, tree, -1);
+    if (tree->rb_right) print_rbtree(tree->rb_right, tree, 1);
+  }
 }
 
 void task_exit_syscall(unsigned int status, unsigned int cause,
                        context *pc_context) {
-  if (current_task->pid == 1 || current_task->pid == 2) {
+  if (current_task->pid == 0 || current_task->pid == 1) {
     return;
   }
   unsigned int current_clock;
@@ -379,18 +381,14 @@ void task_exit_syscall(unsigned int status, unsigned int cause,
       "move %0, $t0\n\t"
       : "=r"(current_clock));
   u32 delta = current_clock / sysctl_sched_time_unit;
-  // kernel_printf("task_kill: delta=%d\n", delta);
-  update_curr(&cfs_rq, 10);
+  update_curr(&cfs_rq, 100);
   pid_t pid_to_kill = current_task->pid;
   kernel_printf("task_kill_syscall: kill process %s pid=%d\n",
                 current_task->name, current_task->pid);
   struct task_struct *next = pick_next_task_fair(&cfs_rq);
   if (next == current_task) {
-    kernel_printf("next_name=%s, vtime=%d, cur_name=%s, vtime=%d\n", next->name,
-                  next->se.vruntime, current_task->name, current_task->se.vruntime);
-    kernel_printf("task_kill: fatal\n");
-    kernel_printf("cfs vruntime=%d\n", cfs_rq.min_vruntime);
-    print_rbtree(cfs_rq.tasks_timeline.rb_node, NULL, 0);
+    kernel_printf("task_kill: fatal, OS should not kill itself here\n");
+    return;
   }
   copy_context(&(next->context), pc_context);
   current_task = next;
