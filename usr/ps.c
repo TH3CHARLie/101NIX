@@ -2,12 +2,14 @@
 #include <driver/ps2.h>
 #include <driver/sd.h>
 #include <driver/vga.h>
+#include <page.h>
 #include <zjunix/bootmm.h>
 #include <zjunix/buddy.h>
 #include <zjunix/fs/fat.h>
 #include <zjunix/slab.h>
 #include <zjunix/time.h>
 #include <zjunix/utils.h>
+#include <zjunix/vm.h>
 #include "../usr/ls.h"
 #include "exec.h"
 #include "myvi.h"
@@ -16,43 +18,39 @@ char ps_buffer[64];
 int ps_buffer_index;
 
 void test_proc() {
-  // unsigned int timestamp;
-  // unsigned int currTime;
-  // unsigned int data;
-  // asm volatile("mfc0 %0, $9, 6\n\t" : "=r"(timestamp));
-  // data = timestamp & 0xff;
-  // while (1) {
-  //     asm volatile("mfc0 %0, $9, 6\n\t" : "=r"(currTime));
-  //     if (currTime - timestamp > 100000000) {
-  //         timestamp += 100000000;
-  //         *((unsigned int *)0xbfc09018) = data;
-  //     }
-  // }
-  // int i = 0;
-  // char * buffer[100];
-  // for (i = 0; i < 100; ++i) {
-  //   buffer[i] = (char*)kmalloc(4096);
-  // }
-  // for (i = 0; i < 100; ++i) {
-  //   kfree(buffer[i]);
-  // }
-
-  while (true) {
-    ;
+  unsigned int timestamp;
+  unsigned int currTime;
+  unsigned int data;
+  asm volatile("mfc0 %0, $9, 6\n\t" : "=r"(timestamp));
+  data = timestamp & 0xff;
+  while (1) {
+    asm volatile("mfc0 %0, $9, 6\n\t" : "=r"(currTime));
+    if (currTime - timestamp > 100000000) {
+      timestamp += 100000000;
+      *((unsigned int *)0xbfc09018) = data;
+    }
   }
 }
 
 int proc_demo_create() {
-  int ret_pid;
-  task_create("33333333333", test_proc, 0, 0, &ret_pid, 20);
-  task_create("44444444444", test_proc, 0, 0, &ret_pid, 20);
-  task_create("55555555555", test_proc, 0, 0, &ret_pid, 20);
-  task_create("666666666666", test_proc, 0, 0, &ret_pid, 20);
-  task_create("888888888888", test_proc, 0, 0, &ret_pid, 20);
-  // enable_interrupts();
+  task_create("demo_test_proc", test_proc, 0, 0, 0, 1);
   return 0;
 }
 
+void empty_test() {
+  int i = 0;
+  while (i < 100) {
+    kernel_printf("");
+  }
+}
+
+void create_test_prog() {
+  task_create("1111", empty_test, 0, 0, 5, 1);
+//   task_create("2222", empty_test, 0, 0, 0, 1);
+//   task_create("3333", empty_test, 0, 0, 20, 1);
+//   task_create("4444", empty_test, 0, 0, -5, 1);
+//   task_create("5555", empty_test, 0, 0, 10, 1);
+}
 void ps() {
   kernel_printf("Press any key to enter shell.\n");
   kernel_getchar();
@@ -62,7 +60,6 @@ void ps() {
   kernel_clear_screen(31);
   kernel_puts("PowerShell\n", 0xfff, 0);
   kernel_puts("PS>", 0xfff, 0);
-  int ret_pid;
   while (1) {
     c = kernel_getchar();
     if (c == '\n') {
@@ -147,23 +144,26 @@ void parse_cmd() {
     int pid = param[0] - '0';
     kernel_printf("Killing process %d\n", pid);
     task_kill(pid);
+    kernel_printf("kill return with %d\n", result);
   } else if (kernel_strcmp(ps_buffer, "wait") == 0) {
     int pid = param[0] - '0';
     kernel_printf("wait process %d\n", pid);
     task_wait(pid);
   } else if (kernel_strcmp(ps_buffer, "wake") == 0) {
     int pid = param[0] - '0';
-    kernel_printf("wake process %d\n", pid);
+    kernel_printf("wake up process %d\n", pid);
     task_wakeup(pid);
   } else if (kernel_strcmp(ps_buffer, "time") == 0) {
-    unsigned int init_gp;
-    asm volatile("la %0, _gp\n\t" : "=r"(init_gp));
-    // pc_create(2, system_time_proc, (unsigned int)kmalloc(4096), init_gp,
-    // "time");
+    task_create("time_proc", system_time_proc, 0, 0, 0, 0);
   } else if (kernel_strcmp(ps_buffer, "proc") == 0) {
     result = proc_demo_create();
     kernel_printf("proc return with %d\n", result);
-  } else if (kernel_strcmp(ps_buffer, "cat") == 0) {
+  } else if (kernel_strcmp(ps_buffer, "test") == 0) {
+    create_test_prog();
+
+  }
+
+  else if (kernel_strcmp(ps_buffer, "cat") == 0) {
     result = fs_cat(param);
     kernel_printf("cat return with %d\n", result);
   } else if (kernel_strcmp(ps_buffer, "ls") == 0) {
@@ -175,6 +175,19 @@ void parse_cmd() {
   } else if (kernel_strcmp(ps_buffer, "exec") == 0) {
     result = exec(param);
     kernel_printf("exec return with %d\n", result);
+  } else if (kernel_strcmp(ps_buffer, "pgtable") == 0) {
+    print_pgtable();
+  } else if (kernel_strcmp(ps_buffer, "vma") == 0) {
+    task_create("vma_proc", vma_proc, 0, 0, 0, 1);
+  } else if (kernel_strcmp(ps_buffer, "pageshare") == 0) {
+    task_create("page_share_proc_1", page_share_proc_1, 0, 0, 0, 1);
+    sleep(1000 * 1000 * 10);
+    task_create("page_share_proc_2", page_share_proc_2, 0, 0, 0, 1);
+  } else if (kernel_strcmp(ps_buffer, "buffer") == 0) {
+    kernel_printf("[debug][ps]start\n");
+    unsigned int init_gp;
+    asm volatile("la %0, _gp\n\t" : "=r"(init_gp));
+    task_create("buffer_proc", buffer_proc, 0, 0, 0, 1);
   } else {
     kernel_puts(ps_buffer, 0xfff, 0);
     kernel_puts(": command not found\n", 0xfff, 0);

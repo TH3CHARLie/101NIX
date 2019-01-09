@@ -63,12 +63,4 @@ void get_time(char *buf, int len) {
     buf[8] = 0;
 }
 
-unsigned int get_tick() {
-    unsigned int ticks_low;
-    asm volatile(
-        "mfc0 %0, $9, 6\n\t"
-         : "=r"(ticks_low));
-    return ticks_low;
-} 
-
 #pragma GCC pop_options

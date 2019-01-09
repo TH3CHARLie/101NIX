@@ -11,4 +11,4 @@ typedef int bool;
 #define true 1
 #define false 0
 
-#endif // ! _ZJUNIX_TYPE_H
+#endif  // ! _ZJUNIX_TYPE_H

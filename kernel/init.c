@@ -12,6 +12,7 @@
 #include <zjunix/slab.h>
 #include <zjunix/syscall.h>
 #include <zjunix/time.h>
+#include <zjunix/vm.h>
 #include "../usr/ps.h"
 
 void machine_info() {
@@ -21,7 +22,8 @@ void machine_info() {
     row = cursor_row;
     col = cursor_col;
     cursor_row = 29;
-    kernel_printf("%s", "Created by System Interest Group, Zhejiang University.");
+    kernel_printf("%s",
+                  "Created by System Interest Group, Zhejiang University.");
     cursor_row = row;
     cursor_col = col;
     kernel_set_cursor();
@@ -30,11 +32,10 @@ void machine_info() {
 #pragma GCC push_options
 #pragma GCC optimize("O0")
 void create_startup_process() {
-    int ret_pid;
-    task_create("powershell", ps, 0, 0, &ret_pid, 1);
+    task_create("powershell", ps, 0, 0, -5, 0);
     log(LOG_OK, "Shell init");
-    // pc_create(2, system_time_proc, (unsigned int)kmalloc(4096) + 4096, init_gp, "time");
-    // log(LOG_OK, "Timer init");
+    task_create("time_proc", system_time_proc, 0, 0, 0, 0);
+    log(LOG_OK, "Timer init");
 }
 #pragma GCC pop_options
 
@@ -47,6 +48,8 @@ void init_kernel() {
     // Drivers
     init_vga();
     init_ps2();
+    // Virtual Memory
+    init_vm();
     // Memory management
     log(LOG_START, "Memory Modules.");
     init_bootmm();

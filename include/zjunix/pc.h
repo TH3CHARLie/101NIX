@@ -4,9 +4,12 @@
 #ifndef _101NIX_SCHED_H_
 #define _101NIX_SCHED_H_
 #include <arch.h>
+#include <driver/vga.h>
 #include <zjunix/cfs.h>
 #include <zjunix/pid.h>
-#include <driver/vga.h>
+
+typedef struct _memory_block_struct memory_block_struct;
+
 // define the size of each PCB to be 4096
 // for memory alignment
 #define TASK_KERNEL_SIZE 4096
@@ -36,7 +39,7 @@ enum {
   TASK_DEAD,
 };
 
-struct task_struct {
+typedef struct task_struct {
   // state, ie: TASK_RUNNING
   int state;
 
@@ -82,23 +85,27 @@ struct task_struct {
 
   struct list_head task_node;
   struct list_head state_node;
-};
+  int user_mode;
+  void *vm;
+  memory_block_struct *user_pc_memory_blocks[9];
+} task_struct;
 
-union task_union {
+typedef union task_union {
   struct task_struct task;
   unsigned char kernel_stack[TASK_KERNEL_SIZE];
-};
+} task_union;
 
 void init_task_module();
 
 void task_create(char *task_name, void (*entry)(unsigned int argc, void *args),
-                 unsigned int argc, void *args, pid_t *retpid, int nice);
+                 unsigned int argc, void *args, int nice, int user_mode);
 
-void task_tick(unsigned int status, unsigned int cause,
-                   context* pt_context);
+void task_tick(unsigned int status, unsigned int cause, context *pt_context);
 
 void task_schedule(unsigned int status, unsigned int cause,
-                   context* pt_context);
+                   context *pt_context);
+void task_exit_syscall(unsigned int status, unsigned int cause,
+                       context *pc_context);
 
 void task_kill(pid_t pid);
 
@@ -108,12 +115,6 @@ void task_wakeup(pid_t pid);
 
 struct task_struct *get_current_task();
 
-void pc_schedule(unsigned int status, unsigned int cause, context *pt_context);
-int pc_peek();
-void pc_create(int asid, void (*func)(), unsigned int init_sp,
-               unsigned int init_gp, char *name);
-void pc_kill_syscall(unsigned int status, unsigned int cause,
-                     context *pt_context);
-int pc_kill(int proc);
 int print_proc();
+
 #endif  // _101NIX_SCHED_H_

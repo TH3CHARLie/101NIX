@@ -6,5 +6,4 @@ void get_time(char* buf, int len);
 
 void system_time_proc();
 
-unsigned int get_tick();
 #endif // ! _ZJUNIX_TIME_H

@@ -1,3 +1,3 @@
-OBJS := pc.o cfs.o pid.o rbtree.o
+OBJS := pc.o pid.o cfs.o rbtree.o
 
 include $(SUB_MAKE_INCLUDE)

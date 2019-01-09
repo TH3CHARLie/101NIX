@@ -89,7 +89,7 @@ static void reassign_vruntime(struct cfs_rq* cfs_rq) {
   struct list_head* pos;
   struct task_struct* p;
   list_for_each(pos, &task_ready) {
-    p = container_of(pos, struct task_struct, task_node);
+    p = container_of(pos, struct task_struct, state_node);
     p->se.vruntime = 0;
   }
   cfs_rq->rb_leftmost = rb_next(cfs_rq->rb_leftmost);

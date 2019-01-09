@@ -8,7 +8,6 @@ void init_lock(struct lock_t *lock) {
 
 unsigned int lockup(struct lock_t *lock) {
     unsigned int old_ie;
-
     old_ie = disable_interrupts();
     if (lock->spin) {
     }
