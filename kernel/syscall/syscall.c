@@ -9,6 +9,8 @@ void init_syscall() {
 
     // register all syscalls here
     register_syscall(4, syscall4);
+
+    register_syscall(15, task_schedule);
 }
 
 void syscall(unsigned int status, unsigned int cause, context* pt_context) {

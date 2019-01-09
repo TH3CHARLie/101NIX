@@ -1,40 +1,3 @@
-// #ifndef _ZJUNIX_PC_H
-// #define _ZJUNIX_PC_H
-
-// typedef struct {
-//     unsigned int epc;
-//     unsigned int at;
-//     unsigned int v0, v1;
-//     unsigned int a0, a1, a2, a3;
-//     unsigned int t0, t1, t2, t3, t4, t5, t6, t7;
-//     unsigned int s0, s1, s2, s3, s4, s5, s6, s7;
-//     unsigned int t8, t9;
-//     unsigned int hi, lo;
-//     unsigned int gp;
-//     unsigned int sp;
-//     unsigned int fp;
-//     unsigned int ra;
-// } context;
-
-// typedef struct {
-//     context context;
-//     int ASID;
-//     unsigned int counter;
-//     char name[32];
-//     unsigned long start_time;
-// } task_struct;
-
-// typedef union {
-//     task_struct task;
-//     unsigned char kernel_stack[4096];
-// } task_union;
-
-// #define PROC_DEFAULT_TIMESLOTS 6
-
-// void init_pc();
-
-// #endif  // !_ZJUNIX_PC_H
-
 // sched.h
 // definitions of process schedule related data structures, constants and marcos
 
@@ -118,7 +81,7 @@ struct task_struct {
   char name[32];
 
   struct list_head task_node;
-  struct list_head running_node;
+  struct list_head state_node;
 };
 
 union task_union {
@@ -131,8 +94,17 @@ void init_task_module();
 void task_create(char *task_name, void (*entry)(unsigned int argc, void *args),
                  unsigned int argc, void *args, pid_t *retpid, int nice);
 
+void task_tick(unsigned int status, unsigned int cause,
+                   context* pt_context);
+
 void task_schedule(unsigned int status, unsigned int cause,
-                   context *pt_context);
+                   context* pt_context);
+
+void task_kill(pid_t pid);
+
+void task_wait(pid_t pid);
+
+void task_wakeup(pid_t pid);
 
 struct task_struct *get_current_task();
 
