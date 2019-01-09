@@ -186,6 +186,13 @@ unsigned int get_slab(unsigned int size) {
 }
 
 void *kmalloc(unsigned int size) {
+    static unsigned int addr = 0x87FF0000;
+    size += (1 << PAGE_SHIFT) - 1;
+    size &= ~((1 << PAGE_SHIFT) - 1);
+    unsigned int result = addr;
+    addr -= size;
+    return (void *)result;
+
     struct kmem_cache *cache;
     unsigned int bf_index;
 

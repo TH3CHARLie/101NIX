@@ -8,12 +8,12 @@ void init_lock(struct lock_t *lock) {
 
 unsigned int lockup(struct lock_t *lock) {
     unsigned int old_ie;
-    old_ie = disable_interrupts();
+    // old_ie = disable_interrupts();
     if (lock->spin) {
     }
     lock->spin = 1;
     if (old_ie) {
-        enable_interrupts();
+        // enable_interrupts();
     }
 
     return 1;
@@ -22,12 +22,12 @@ unsigned int lockup(struct lock_t *lock) {
 unsigned int unlock(struct lock_t *lock) {
     unsigned int old_ie;
 
-    old_ie = disable_interrupts();
+    // old_ie = disable_interrupts();
     if (lock->spin) {
         lock->spin = 0;
     }
     if (old_ie) {
-        enable_interrupts();
+        // enable_interrupts();
     }
 
     return 1;

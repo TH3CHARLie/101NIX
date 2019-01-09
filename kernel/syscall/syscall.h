@@ -8,5 +8,9 @@ void syscall50(unsigned int status, unsigned int cause, context* pt_context);
 void syscall51(unsigned int status, unsigned int cause, context* pt_context);
 void syscall60(unsigned int status, unsigned int cause, context* pt_context);
 void syscall61(unsigned int status, unsigned int cause, context* pt_context);
+void syscall70(unsigned int status, unsigned int cause, context* pt_context);
+void syscall71(unsigned int status, unsigned int cause, context* pt_context);
+void syscall72(unsigned int status, unsigned int cause, context* pt_context);
+void syscall73(unsigned int status, unsigned int cause, context* pt_context);
 
 #endif  // ! _SYSCALL_H

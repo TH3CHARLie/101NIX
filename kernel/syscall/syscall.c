@@ -3,6 +3,7 @@
 #include <driver/vga.h>
 #include <exc.h>
 #include <intr.h>
+#include <zjunix/semaphore.h>
 #include <zjunix/syscall.h>
 #include <zjunix/vm.h>
 
@@ -21,6 +22,12 @@ void init_syscall() {
     // malloc & free
     register_syscall(60, syscall60);
     register_syscall(61, syscall61);
+
+    // semaphore create / wait / signal
+    register_syscall(70, syscall70);
+    register_syscall(71, syscall71);
+    register_syscall(72, syscall72);
+    register_syscall(73, syscall73);
 
     // may need refactor into below format
     // task & schedule
@@ -70,4 +77,26 @@ void syscall60(unsigned int status, unsigned int cause, context* pt_context) {
 void syscall61(unsigned int status, unsigned int cause, context* pt_context) {
     int ret = memory_free(get_current_task(), (void*)pt_context->a0);
     pt_context->v0 = ret;
+}
+
+void syscall70(unsigned int status, unsigned int cause, context* pt_context) {
+    char* name = (char*)pt_context->a0;
+    int count = pt_context->a1;
+    int ret = semaphore_create(name, count);
+    pt_context->v0 = ret;
+}
+
+void syscall71(unsigned int status, unsigned int cause, context* pt_context) {
+    char* name = (char*)pt_context->a0;
+    semaphore_delete(name);
+}
+
+void syscall72(unsigned int status, unsigned int cause, context* pt_context) {
+    char* name = (char*)pt_context->a0;
+    semaphore_wait(name);
+}
+
+void syscall73(unsigned int status, unsigned int cause, context* pt_context) {
+    char* name = (char*)pt_context->a0;
+    semaphore_signal(name);
 }

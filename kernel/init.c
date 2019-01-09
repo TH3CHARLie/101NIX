@@ -9,11 +9,15 @@
 #include <zjunix/fs/fat.h>
 #include <zjunix/log.h>
 #include <zjunix/pc.h>
+#include <zjunix/semaphore.h>
 #include <zjunix/slab.h>
 #include <zjunix/syscall.h>
 #include <zjunix/time.h>
 #include <zjunix/vm.h>
 #include "../usr/ps.h"
+
+#pragma GCC push_options
+#pragma GCC optimize("O0")
 
 void machine_info() {
     int row;
@@ -29,13 +33,18 @@ void machine_info() {
     kernel_set_cursor();
 }
 
-#pragma GCC push_options
-#pragma GCC optimize("O0")
+void useless() {
+    while (1) {
+        ;
+    }
+}
+
 void create_startup_process() {
     task_create("powershell", ps, 0, 0, -5, 0);
     log(LOG_OK, "Shell init");
     task_create("time_proc", system_time_proc, 0, 0, 0, 0);
     log(LOG_OK, "Timer init");
+    task_create("idle", useless, 0, 0, 0, 1);
 }
 #pragma GCC pop_options
 
@@ -72,6 +81,10 @@ void init_kernel() {
     init_task_module();
     create_startup_process();
     log(LOG_END, "Process Control Module.");
+    // Semaphore
+    log(LOG_START, "Semaphore.");
+    semaphore_init();
+    log(LOG_END, "Semaphore.");
     // Interrupts
     log(LOG_START, "Enable Interrupts.");
     init_interrupts();
