@@ -2,6 +2,7 @@
 #define _PAGE__H
 
 void init_pgtable();
+void print_pgtable();
 
 typedef struct {
     unsigned int reserved1 : 12;

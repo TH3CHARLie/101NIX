@@ -1,5 +1,6 @@
 #include "vga.h"
 #include <arch.h>
+#include <intr.h>
 #include <zjunix/utils.h>
 
 const int VGA_CHAR_MAX_ROW = 32;
@@ -11,7 +12,8 @@ int cursor_col;
 int cursor_freq = 31;
 
 void kernel_set_cursor() {
-    *GPIO_CURSOR = ((cursor_freq & 0xff) << 16) + ((cursor_row & 0xff) << 8) + (cursor_col & 0xff);
+    *GPIO_CURSOR = ((cursor_freq & 0xff) << 16) + ((cursor_row & 0xff) << 8) +
+                   (cursor_col & 0xff);
 }
 
 void init_vga() {
@@ -31,9 +33,16 @@ void kernel_clear_screen(int scope) {
 }
 
 void kernel_scroll_screen() {
+    unsigned int old_ie;
+    old_ie = disable_interrupts();
     unsigned int w = 0x000fff00;
-    kernel_memcpy(CHAR_VRAM, (CHAR_VRAM + VGA_CHAR_MAX_COL), (VGA_CHAR_ROW - 2) * VGA_CHAR_MAX_COL * 4);
-    kernel_memset_word((CHAR_VRAM + (VGA_CHAR_ROW - 2) * VGA_CHAR_MAX_COL), w, VGA_CHAR_MAX_COL);
+    kernel_memcpy(CHAR_VRAM, (CHAR_VRAM + VGA_CHAR_MAX_COL),
+                  (VGA_CHAR_ROW - 2) * VGA_CHAR_MAX_COL * 4);
+    kernel_memset_word((CHAR_VRAM + (VGA_CHAR_ROW - 2) * VGA_CHAR_MAX_COL), w,
+                       VGA_CHAR_MAX_COL);
+    if (old_ie) {
+        enable_interrupts();
+    }
 }
 
 void kernel_putchar_at(int ch, int fc, int bg, int row, int col) {
@@ -46,10 +55,11 @@ void kernel_putchar_at(int ch, int fc, int bg, int row, int col) {
 
 int kernel_putchar(int ch, int fc, int bg) {
     unsigned int w = 0x000fff00;
-    if (ch == '\r')
-        return ch;
+    if (ch == '\r') return ch;
     if (ch == '\n') {
-        kernel_memset_word(CHAR_VRAM + cursor_row * VGA_CHAR_MAX_COL + cursor_col, w, VGA_CHAR_COL - cursor_col);
+        kernel_memset_word(
+            CHAR_VRAM + cursor_row * VGA_CHAR_MAX_COL + cursor_col, w,
+            VGA_CHAR_COL - cursor_col);
         cursor_col = 0;
         if (cursor_row == VGA_CHAR_ROW - 2) {
             kernel_scroll_screen();
@@ -63,7 +73,9 @@ int kernel_putchar(int ch, int fc, int bg) {
         if (cursor_col >= VGA_CHAR_COL - 4) {
             kernel_putchar('\n', 0, 0);
         } else {
-            kernel_memset_word(CHAR_VRAM + cursor_row * VGA_CHAR_MAX_COL + cursor_col, w, 4 - cursor_col & 3);
+            kernel_memset_word(
+                CHAR_VRAM + cursor_row * VGA_CHAR_MAX_COL + cursor_col, w,
+                4 - cursor_col & 3);
             cursor_col = (cursor_col + 4) & (-4);
         }
     } else {
@@ -179,9 +191,14 @@ exit:
 
 int kernel_printf(const char *format, ...) {
     int cnt = 0;
+    unsigned int old_ie;
+    old_ie = disable_interrupts();
     va_list ap;
     va_start(ap, format);
     cnt = kernel_vprintf(format, ap);
     va_end(ap);
+    if (old_ie) {
+        enable_interrupts();
+    }
     return cnt;
 }

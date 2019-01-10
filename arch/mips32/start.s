@@ -10,22 +10,11 @@
 .align 2
 
 exception:
-	#TLB refill
- 	mfc0 $k0, $4
- 	lw $k1, 0($k0)
- 	mtc0 $k1, $2
- 	lw $k1, 4($k0)
- 	mtc0 $k1, $3
- 	lw $k1, 8($k0)
- 	mtc0 $k1, $10
- 	lw $k1, 12($k0)
- 	mtc0 $k1, $5
- 	nop #	CP0 hazard
- 	nop #  	CP0 hazard
- 	tlbwr
- 	eret
+	j   exception_start
+	nop
 
 .org 0x0180
+exception_start:
 	lui $k0, 0x8000
 	sltu $k0, $sp, $k0
 	beq $k0, $zero, exception_save_context
@@ -167,6 +156,8 @@ exception_save_context:
 	sw $a2, 0($sp) # EPC
 	sw $t3, 104($sp) # HI
 	sw $t4, 108($sp) # LO
+
+	mfc0  $a3, $8  #bad_addr
 
 # jump to do_exceptions
 	move $a2, $sp
