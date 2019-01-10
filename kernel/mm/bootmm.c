@@ -4,8 +4,6 @@
 #include <zjunix/utils.h>
 
 struct bootmm bmm;
-unsigned int firstusercode_start;
-unsigned int firstusercode_len;
 
 // const value for ENUM of mem_type
 char *mem_msg[] = {
@@ -157,16 +155,13 @@ void set_maps(unsigned int s_pfn, unsigned int cnt, unsigned char value) {
  * return value  = 0 :: allocate failed, else return index(page start)
  */
 unsigned char *find_pages(unsigned int page_cnt, unsigned int s_pfn,
-                          unsigned int e_pfn, unsigned int align_pfn) {
+                          unsigned int e_pfn) {
     unsigned int index, tmp;
     unsigned int cnt;
 
-    s_pfn += (align_pfn - 1);
-    s_pfn &= ~(align_pfn - 1);
-
     for (index = s_pfn; index < e_pfn;) {
         if (bmm.s_map[index] == PAGE_USED) {
-            ++index;
+            index++;
             continue;
         }
 
@@ -190,15 +185,15 @@ unsigned char *find_pages(unsigned int page_cnt, unsigned int s_pfn,
             set_maps(index, page_cnt, PAGE_USED);
             return (unsigned char *)(index << PAGE_SHIFT);
         } else {
-            index = tmp + align_pfn;  // there will be no possible memory space
-                                      // to be allocated before tmp
+            index = tmp;
+            // there will be no possible memory space
+            // to be allocated before tmp
         }
     }
     return 0;
 }
 
-unsigned char *bootmm_alloc_pages(unsigned int size, unsigned int type,
-                                  unsigned int align) {
+unsigned char *bootmm_alloc_pages(unsigned int size, unsigned int type) {
     unsigned int size_inpages;
     unsigned char *res;
 
@@ -207,8 +202,7 @@ unsigned char *bootmm_alloc_pages(unsigned int size, unsigned int type,
     size_inpages = size >> PAGE_SHIFT;
 
     // in normal case, going forward is most likely to find suitable area
-    res = find_pages(size_inpages, bmm.last_alloc_end + 1, bmm.max_pfn,
-                     align >> PAGE_SHIFT);
+    res = find_pages(size_inpages, bmm.last_alloc_end + 1, bmm.max_pfn);
     if (res) {
         insert_mminfo(&bmm, (unsigned int)res, (unsigned int)res + size - 1,
                       type);
@@ -217,7 +211,7 @@ unsigned char *bootmm_alloc_pages(unsigned int size, unsigned int type,
 
     // when system request a lot of operations in booting, then some free area
     // will appear in the front part
-    res = find_pages(size_inpages, 0, bmm.last_alloc_end, align >> PAGE_SHIFT);
+    res = find_pages(size_inpages, 0, bmm.last_alloc_end);
     if (res) {
         insert_mminfo(&bmm, (unsigned int)res, (unsigned int)res + size - 1,
                       type);
