@@ -31,7 +31,7 @@ static inline u32 calc_delta_fair(u32 delta, struct sched_entity* se) {
   if (se->load.weight != NICE_0_LOAD) {
     return __calc_delta(delta, NICE_0_LOAD, &se->load);
   } else {
-    return delta * prio_to_wmult[20];
+    return delta;
   }
 }
 
