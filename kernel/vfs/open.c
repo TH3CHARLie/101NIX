@@ -148,14 +148,12 @@ u32 path_lookup(const u8 * name, u32 flags, struct nameidata *nd) {
     nd->flags = flags;
 
     // 如果路径名的第一个字符是“/”，那么这个路径名是绝对路径，从根目录开始搜索
+    // 否则认为是相对路径，从当前目录开始搜索
     if ( *name == '/' ) {
         dget(root_dentry);
         nd->mnt     = root_mnt;
         nd->dentry  = root_dentry;
-    }
-    
-    // 否则认为是相对路径，从当前目录开始搜索
-    else {
+    } else {
         dget(pwd_dentry);
         nd->mnt     = pwd_mnt;
         nd->dentry  = pwd_dentry;

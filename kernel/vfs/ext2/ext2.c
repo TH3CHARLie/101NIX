@@ -1,11 +1,7 @@
 #include <zjunix/vfs/vfs.h>
 #include <zjunix/vfs/vfscache.h>
 #include <zjunix/vfs/ext2.h>
-#include <zjunix/utils.h>
 #include <zjunix/slab.h>
-#include <zjunix/log.h>
-#include <driver/vga.h>
-#include <driver/ps2.h>
 #include <driver/sd.h>
 
 // 外部变量
@@ -53,9 +49,9 @@ struct address_space_operations ext2_address_space_operations = {
     .bmap       = ext2_bmap,
 };
 
-struct super_block * ext2_get_sb() {
-    return
-}
+//struct super_block * ext2_get_sb() {
+//    return；
+//}
 
 // 初始化基地址为base（绝对扇区地址）上的EXT2文件系统
 u32 init_ext2(u32 base){
