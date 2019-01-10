@@ -21,13 +21,13 @@ u32 mount_ext2(){
     a = &(root_mnt->mnt_hash);
     begin = a;
     a = a->next;
-    while ( a != begin ){
+    while (a != begin) {
         mnt = container_of(a, struct vfsmount, mnt_hash);
-        if ( kernel_strcmp(mnt->mnt_sb->s_type->name ,"ext2") == 0 )
+        if (kernel_strcmp(mnt->mnt_sb->s_type->name, "ext2") == 0)
             break;
     }
         
-    if ( a == begin ) 
+    if (a == begin)
         return -ENOENT;
     
     qstr.name = "ext2";
@@ -53,6 +53,11 @@ u32 mount_ext2(){
 u32 follow_mount(struct vfsmount **mnt, struct dentry **dentry){
     u32 res = 0;
 
+#ifdef DEBUG_VFS
+    kernel_printf("now in follow_mount(%s, %s)\n",
+                  (*mnt)->mnt_root->d_name.name, (*dentry)->d_name.name);
+#endif
+
     // 查找挂载的对象
     while ((*dentry)->d_mounted) {
 		struct vfsmount *mounted = lookup_mnt(*mnt, *dentry);
@@ -64,31 +69,12 @@ u32 follow_mount(struct vfsmount **mnt, struct dentry **dentry){
         dput(*dentry);
         *dentry = dget(mounted->mnt_root);
 		res = 1;
+
+#ifdef DEBUG_VFS
+        kernel_printf("-----now get new follow_mount(%s, %s)\n",
+                      (*mnt)->mnt_root->d_name.name, (*dentry)->d_name.name);
+#endif
     }
     
     return res;
-}
-
-// TODO 添加hash？
-// 遍历当前文件系统对象的mount链表，找到挂载点，然后更换文件系统对象
-struct vfsmount * lookup_mnt(struct vfsmount *mnt, struct dentry *dentry) {
-	struct list_head *head = &(mnt->mnt_hash);
-	struct list_head *tmp = head;
-	struct vfsmount *p, *found = 0;
-
-    // 在字段为hash的双向链表寻找。这里有所有已安装的文件系统的对象
-    // 这里并没有为其实现hash查找，仅普通链表
-	for (;;) {
-		tmp = tmp->next;
-		p = 0;
-		if (tmp == head)
-			break;
-		p = list_entry(tmp, struct vfsmount, mnt_hash);
-		if (p->mnt_parent == mnt && p->mnt_mountpoint == dentry) {
-			found = p;
-			break;
-		}
-	}
-	
-	return found;
 }

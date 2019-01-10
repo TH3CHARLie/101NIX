@@ -2,10 +2,7 @@
 #include <zjunix/vfs/vfscache.h>
 #include <zjunix/vfs/fat32.h>
 
-#include <zjunix/log.h>
 #include <zjunix/slab.h>
-#include <driver/vga.h>
-#include <zjunix/utils.h>
 
 // 外部变量
 extern struct dentry                    * root_dentry;              // vfs.c
@@ -36,7 +33,7 @@ struct inode_operations fat32_inode_operations[2] = {
 };
 
 struct dentry_operations fat32_dentry_operations = {
-    .compare    = generic_compare_filename,
+    .compare    = fat32_compare_filename,
 };
 
 struct file_operations fat32_file_operations = {
@@ -55,10 +52,7 @@ struct address_space_operations fat32_address_space_operations = {
 // 初始化基地址为base（绝对扇区地址）上的FAT32文件系统
 u32 init_fat32(u32 base){
     u32 i;
-    u32 j;
-    u32 k;
     u32 next_clu;
-    u32 temp;
     u32 err;
     struct fat32_basic_information  * fat32_BI;
     struct file_system_type         * fat32_fs_type;
@@ -119,8 +113,8 @@ u32 init_fat32(u32 base){
         return -ENOMEM;
     fat32_fs_type->name = "fat32";
     fat32_fs_type->next = NULL;
-    INIT_LIST_HEAD(&(fat32_fs_type->fs_supers));
-    register_filesystem(fat32_fs_type);
+    // INIT_LIST_HEAD(&(fat32_fs_type->fs_supers));
+    fat32_fs_type = register_filesystem(fat32_fs_type);
 
     // 构建 super_block 结构
     fat32_sb = (struct super_block *) kmalloc ( sizeof(struct super_block) );
@@ -133,12 +127,14 @@ u32 init_fat32(u32 base){
     fat32_sb->s_fs_info = (void*)fat32_BI;
     fat32_sb->s_op      = &fat32_super_operations;
     fat32_sb->s_name    = "/dev/sd1";
+    INIT_LIST_HEAD(&(fat32_sb->s_instances));
     list_add(&fat32_sb->s_instances, &fat32_fs_type->fs_supers);
 
     // 构建根目录关联的 dentry 结构
     root_dentry = (struct dentry *) kmalloc ( sizeof(struct dentry) );
     if (root_dentry == 0)
         return -ENOMEM;
+    root_dentry->d_pinned       = D_PINNED;
     root_dentry->d_count        = 1;
     root_dentry->d_mounted      = 0;
     root_dentry->d_inode        = 0;
@@ -169,7 +165,7 @@ u32 init_fat32(u32 base){
     root_inode->i_sb                = fat32_sb;
     root_inode->i_blocks            = 0;
     INIT_LIST_HEAD(&(root_inode->i_dentry));
-    // root_inode->i_size              = fat32_BI->fa_FAT->fat.table[fat32_BI->fa_DBR->root_clu].size;
+    //root_inode->i_size              = fat32_BI->fa_FAT->fat.table[fat32_BI->fa_DBR->root_clu].size;
     // TODO 得到i_size
     root_inode->i_blksize           = fat32_sb->s_blksize;
 
@@ -235,11 +231,11 @@ u32 init_fat32(u32 base){
         INIT_LIST_HEAD(&(curPage->p_list));
 
         err = curPage->p_mapping->a_op->readpage(curPage);
-        if ( IS_ERR_VALUE(err) ) {
+        if (IS_ERR_VALUE(err)) {
             release_page(curPage);
             return err;
         }
-        
+
         pcache->c_op->add(pcache, (void*)curPage);
         list_add(&(curPage->p_list), &(curPage->p_mapping->a_cache));
         tempp = curPage;
@@ -254,6 +250,8 @@ u32 init_fat32(u32 base){
     root_mnt->mnt_root          = root_dentry;
     root_mnt->mnt_sb            = fat32_sb;
     INIT_LIST_HEAD(&(root_mnt->mnt_hash));
+    INIT_LIST_HEAD(&root_mnt->mnt_child);
+    INIT_LIST_HEAD(&root_mnt->mnt_mounts);
 
     pwd_mnt = root_mnt;
 
@@ -299,8 +297,8 @@ u32 fat32_delete_inode(struct dentry *dentry){
         curPage = (struct vfs_page *)pcache->c_op->look_up(pcache, &cond);
         
         // 如果页高速缓存中没有，则需要在外存中寻找（一定能够找到，因为不是创建文件）
-        if ( curPage == 0 ){
-            curPage = (struct vfs_page *) kmalloc ( sizeof(struct vfs_page) );
+        if (curPage == 0) {
+            curPage = (struct vfs_page *)kmalloc(sizeof(struct vfs_page));
             if (!curPage)
                 return -ENOMEM;
 
@@ -349,7 +347,7 @@ u32 fat32_delete_inode(struct dentry *dentry){
             fat32_convert_filename(&qstr2, &qstr, fat_dir_entry->lcase, FAT32_NAME_SPECIFIC_TO_NORMAL);
 
             // 如果与待找的名字相同，则标记此目录项为删除
-            if ( generic_compare_filename( &qstr2, &(dentry->d_name) ) == 0 ){
+            if (fat32_compare_filename( &qstr2, &(dentry->d_name) ) == 0 ){
                 // kernel_printf("%s\n", qstr.name);
                 fat_dir_entry->name[0] = 0xE5;
                 found = 1;
@@ -459,7 +457,7 @@ u32 fat32_write_inode(struct inode * inode, struct dentry * parent){
             fat32_convert_filename(&qstr2, &qstr, fat_dir_entry->lcase, FAT32_NAME_SPECIFIC_TO_NORMAL);
 
             // 如果与待找的名字相同，则修改相应的文件元信息
-            if ( generic_compare_filename( &qstr2, &(dentry->d_name) ) == 0 ){
+            if (fat32_compare_filename( &qstr2, &(dentry->d_name) ) == 0 ){
                 fat_dir_entry->size         = inode->i_size;
                 found = 1;
                 break;                          // 跳出的是对每一个目录项的循环
@@ -517,8 +515,9 @@ struct dentry* fat32_inode_lookup(struct inode *dir, struct dentry *dentry, stru
         curPage = (struct vfs_page *)pcache->c_op->look_up(pcache, &cond);
         
         // 如果页高速缓存中没有，则需要在外存中寻找（一定能够找到，因为不是创建文件）
-        if ( curPage == 0 ){
-            
+        if (curPage == 0) {
+            kernel_printf("  fat32_inode_lookup: need a page\n");
+
             curPage = (struct vfs_page *) kmalloc ( sizeof(struct vfs_page) );
             if (!curPage)
                 return ERR_PTR(-ENOMEM);
@@ -543,7 +542,7 @@ struct dentry* fat32_inode_lookup(struct inode *dir, struct dentry *dentry, stru
 
         //现在p_data指向的数据就是页的数据。假定页里面的都是fat32短文件目录项。对每一个目录项        
 
-        for ( begin = 0; begin < pagesize; begin += FAT32_DIR_ENTRY_LEN ){
+        for (begin = 0; begin < pagesize; begin += FAT32_DIR_ENTRY_LEN ){
             
             fat_dir_entry = (struct fat_dir_entry *)(curPage->p_data + begin);
 
@@ -560,25 +559,37 @@ struct dentry* fat32_inode_lookup(struct inode *dir, struct dentry *dentry, stru
                 break;
             
             // 有目录项的话，提取其名字
-            kernel_memset( name, 0, MAX_FAT32_SHORT_FILE_NAME_LEN * sizeof(u8) );
-            for ( j = 0; j < MAX_FAT32_SHORT_FILE_NAME_LEN; j++ )
+            kernel_memset(name, 0, MAX_FAT32_SHORT_FILE_NAME_LEN * sizeof(u8));
+            for (j = 0; j < MAX_FAT32_SHORT_FILE_NAME_LEN; j++)
                 name[j] = fat_dir_entry->name[j];
-            // kernel_printf("here ok1\n");
+
+#ifdef DEBUG_FAT32
+            kernel_printf("  %d: %s\n", begin, name);
+#endif
+
             qstr.name = name;
             qstr.len = MAX_FAT32_SHORT_FILE_NAME_LEN;
 
             // 转换名字
             fat32_convert_filename(&qstr2, &qstr, fat_dir_entry->lcase, FAT32_NAME_SPECIFIC_TO_NORMAL);
+#ifdef DEBUG_FAT32
+            kernel_printf("      converted name: %s\n", qstr2.name);
+#endif
 
             // 如果与待找的名字相同，则建立相应的inode
-            if ( generic_compare_filename( &qstr2, &(dentry->d_name) ) == 0 ){
+            if (fat32_compare_filename(&qstr2, &(dentry->d_name)) == 0) {
                 // 获得起始簇号（相对物理地址）
+
+#ifdef DEBUG_FAT32
+                kernel_printf("           find name!\n");
+#endif
+
                 low     = fat_dir_entry->startlo;
                 high    = fat_dir_entry->starthi;
                 addr    = (high << 16) + low;
 
                 // 填充inode的相应信息
-                new_inode = (struct inode*) kmalloc ( sizeof(struct inode) );
+                new_inode = (struct inode *)kmalloc(sizeof(struct inode));
                 new_inode->i_count          = 1;
                 new_inode->i_ino            = addr;           // 本fat32系统设计inode的ino即为起始簇号
                 new_inode->i_blkbits        = dir->i_blkbits;
@@ -626,8 +637,10 @@ struct dentry* fat32_inode_lookup(struct inode *dir, struct dentry *dentry, stru
     }
 
     // 如果没找到相应的inode
-    if (!found)
+    if (!found) {
+        kernel_printf("[FAT32 ERROR]: fat32 inode not found!\n");
         return 0;
+    }
 
     // 完善dentry的信息
     dentry->d_inode = new_inode;
@@ -669,7 +682,7 @@ u32 fat32_readdir(struct file * file, struct getdent * getdent){
 
     // 对目录关联的每一页
     getdent->count = 0;
-    getdent->dirent = (struct dirent *) kmalloc ( sizeof(struct dirent) * (dir->i_blocks * pagesize / FAT32_DIR_ENTRY_LEN));
+    getdent->dirent = (struct dirent *)kmalloc(sizeof(struct dirent) * (dir->i_blocks * pagesize / FAT32_DIR_ENTRY_LEN));
     if (getdent->dirent == 0)
         return -ENOMEM;
 
@@ -685,7 +698,7 @@ u32 fat32_readdir(struct file * file, struct getdent * getdent){
         
         // 如果页高速缓存中没有，则需要在外存中寻找（一定能够找到，因为不是创建文件）
         if ( curPage == 0 ){
-            curPage = (struct vfs_page *) kmalloc ( sizeof(struct vfs_page) );
+            curPage = (struct vfs_page *)kmalloc(sizeof(struct vfs_page));
             if (!curPage)
                 return -ENOMEM;
 
@@ -708,7 +721,7 @@ u32 fat32_readdir(struct file * file, struct getdent * getdent){
         }
 
         //现在p_data指向的数据就是页的数据。假定页里面的都是fat32短文件目录项。对每一个目录项        
-        for ( begin = 0; begin < pagesize; begin += FAT32_DIR_ENTRY_LEN ){
+        for (begin = 0; begin < pagesize; begin += FAT32_DIR_ENTRY_LEN) {
             fat_dir_entry = (struct fat_dir_entry *)(curPage->p_data + begin);
 
             // 先判断是不是短文件名，如果不是的话跳过（08 卷标、0F长文件名）
@@ -724,8 +737,8 @@ u32 fat32_readdir(struct file * file, struct getdent * getdent){
                 break;
             
             // 还有目录项的话，提取其名字
-            kernel_memset( name, 0, MAX_FAT32_SHORT_FILE_NAME_LEN * sizeof(u8) );
-            for ( j = 0; j < MAX_FAT32_SHORT_FILE_NAME_LEN; j++ )
+            kernel_memset(name, 0, MAX_FAT32_SHORT_FILE_NAME_LEN * sizeof(u8));
+            for (j = 0; j < MAX_FAT32_SHORT_FILE_NAME_LEN; j++)
                 name[j] = fat_dir_entry->name[j];
             
             qstr.name = name;
@@ -759,7 +772,7 @@ u32 fat32_readdir(struct file * file, struct getdent * getdent){
 void fat32_convert_filename(struct qstr* dest, const struct qstr* src, u8 mode, u32 direction){
     u8* name;
     int i;
-    u32 j;
+    int j;
     u32 dot;
     int end;
     u32 null;
@@ -769,32 +782,28 @@ void fat32_convert_filename(struct qstr* dest, const struct qstr* src, u8 mode, 
     dest->len = 0;
 
     // 若src放的是一般的文件名
-    if ( direction == FAT32_NAME_NORMAL_TO_SPECIFIC ){
-        name = (u8 *) kmalloc ( MAX_FAT32_SHORT_FILE_NAME_LEN * sizeof(u8) );
+    if (direction == FAT32_NAME_NORMAL_TO_SPECIFIC) {
+        name = (u8 *)kmalloc(MAX_FAT32_SHORT_FILE_NAME_LEN * sizeof(u8));
 
         // 找到作为拓展名的“.”
-        dot = 0;
         dot_pos = INF;
-        for ( i = 0; i < src->len; i++ )
-            if ( src->name[i] == '.' ){
-                dot = 1;
+        for (i = 0; i < src->len; i++)
+            if (src->name[i] == '.') {
+                dot_pos = i;
                 break;
             }
-                
-        if (dot)
-            dot_pos = i;
 
         // 先转换“.”前面的部分
-        if ( dot_pos > MAX_FAT32_SHORT_FILE_NAME_BASE_LEN )
+        if (dot_pos > MAX_FAT32_SHORT_FILE_NAME_BASE_LEN)
             end = MAX_FAT32_SHORT_FILE_NAME_BASE_LEN - 1;
         else
             end = dot_pos - 1;
 
-        for ( i = 0; i < MAX_FAT32_SHORT_FILE_NAME_BASE_LEN; i++ ){
-            if ( i > end )
+        for (i = 0; i < MAX_FAT32_SHORT_FILE_NAME_BASE_LEN; i++) {
+            if (i > end)
                 name[i] = '\0';
             else {
-                if ( src->name[i] <= 'z' && src->name[i] >= 'a' )
+                if (src->name[i] <= 'z' && src->name[i] >= 'a')
                     name[i] = src->name[i] - 'a' + 'A';
                 else
                     name[i] = src->name[i];
@@ -802,12 +811,12 @@ void fat32_convert_filename(struct qstr* dest, const struct qstr* src, u8 mode, 
         }
 
         // 再转换“.”后面的部分
-        for ( i = MAX_FAT32_SHORT_FILE_NAME_BASE_LEN, j = dot_pos + 1; i < MAX_FAT32_SHORT_FILE_NAME_LEN; i++, j++ )
+        for (i = MAX_FAT32_SHORT_FILE_NAME_BASE_LEN, j = dot_pos + 1; i < MAX_FAT32_SHORT_FILE_NAME_LEN; i++, j++)
         {
-            if ( j >= src->len )
+            if (j >= src->len)
                 name[i] == '\0';
             else{
-                if ( src->name[j] <= 'z' && src->name[j] >= 'a' )
+                if (src->name[j] <= 'z' && src->name[j] >= 'a')
                     name[i] = src->name[j] - 'a' + 'A';
                 else
                     name[i] = src->name[j];
@@ -819,27 +828,26 @@ void fat32_convert_filename(struct qstr* dest, const struct qstr* src, u8 mode, 
     }
 
     // 若src放的是8-3规则的文件名
-    else if ( direction == FAT32_NAME_SPECIFIC_TO_NORMAL ) {
+    else if (direction == FAT32_NAME_SPECIFIC_TO_NORMAL) {
         // 默认src的长度必为 MAX_FAT32_SHORT_FILE_NAME_LEN
         // 首先找出新字符串的长度，同时找出“.”的位置
         null = 0;
         dot_pos = MAX_FAT32_SHORT_FILE_NAME_LEN;
-        for ( i = MAX_FAT32_SHORT_FILE_NAME_LEN - 1; i  ; i-- ){
-            if ( src->name[i] == 0x20 ) {
+        for (i = MAX_FAT32_SHORT_FILE_NAME_LEN - 1; i; i--) {
+            if (src->name[i] == 0x20) {
                 dot_pos = i;
                 null ++;
             }
-
         }
 
         dest->len = MAX_FAT32_SHORT_FILE_NAME_LEN - null;
-        name = (u8 *) kmalloc ( (dest->len + 2) * sizeof(u8) );     // 空字符 + '.'(不一定有)
+        name = (u8 *)kmalloc((dest->len + 2) * sizeof(u8));     // 空字符 + '.'(不一定有)
         
-        if ( dot_pos > MAX_FAT32_SHORT_FILE_NAME_BASE_LEN )
+        if (dot_pos > MAX_FAT32_SHORT_FILE_NAME_BASE_LEN)
             dot_pos = MAX_FAT32_SHORT_FILE_NAME_BASE_LEN;
         
         // 先转换应该是“.”之前的部分
-        for ( i = 0; i < dot_pos; i++ ) {
+        for (i = 0; i < dot_pos; i++) {
             if (src->name[i] <= 'z' && src->name[i] >= 'a' && (mode == 0x10 || mode == 0x00) )
                 name[i] = src->name[i] - 'a' + 'A';
             else if (src->name[i] <= 'Z' && src->name[i] >= 'A' && (mode == 0x18 || mode == 0x08) )

@@ -11,6 +11,7 @@
 #include <zjunix/time.h>
 #include <zjunix/utils.h>
 #include <zjunix/vm.h>
+#include <zjunix/vfs/vfs.h>
 #include "../usr/ls.h"
 #include "exec.h"
 #include "myvi.h"
@@ -52,6 +53,21 @@ void create_test_prog() {
     //   task_create("4444", empty_test, 0, 0, -5, 1);
     //   task_create("5555", empty_test, 0, 0, 10, 1);
 }
+
+void get_a_str(char * a, char **p) {
+    while (**p == ' ') (*p)++;
+    int i;
+    for (i = 0; **p != 0 && **p != ' '; (*p)++)
+        a[i++] = **p;
+    a[i] = '\0';
+}
+
+void get_num(int * num, char ** p) {
+    for (*num = 0; **p != 0 && **p != ' '; (*p)++)
+        *num = (*num) * 10 + (**p) - '0';
+}
+
+
 void ps() {
     kernel_printf("Press any key to enter shell.\n");
     kernel_getchar();
@@ -103,10 +119,13 @@ void parse_cmd() {
             break;
         }
     }
-    if (i == 63)
-        param = ps_buffer;
-    else
+    if (i == 63){
+        ps_buffer[62] = 0;
+        param = ps_buffer + 62;
+    } else {
         param = ps_buffer + i + 1;
+    }
+
     if (ps_buffer[0] == 0) {
         return;
     } else if (kernel_strcmp(ps_buffer, "clear") == 0) {
@@ -162,13 +181,17 @@ void parse_cmd() {
     } else if (kernel_strcmp(ps_buffer, "test") == 0) {
         create_test_prog();
 
-    } else if (kernel_strcmp(ps_buffer, "cat") == 0) {
-        result = fs_cat(param);
-        kernel_printf("cat return with %d\n", result);
-    } else if (kernel_strcmp(ps_buffer, "ls") == 0) {
-        result = ls(param);
-        kernel_printf("ls return with %d\n", result);
-    } else if (kernel_strcmp(ps_buffer, "vi") == 0) {
+    }
+
+//    else if (kernel_strcmp(ps_buffer, "cat") == 0) {
+//        result = fs_cat(param);
+//        kernel_printf("cat return with %d\n", result);
+//    } else if (kernel_strcmp(ps_buffer, "ls") == 0) {
+//        result = ls(param);
+//        kernel_printf("ls return with %d\n", result);
+//    }
+
+    else if (kernel_strcmp(ps_buffer, "vi") == 0) {
         result = myvi(param);
         kernel_printf("vi return with %d\n", result);
     } else if (kernel_strcmp(ps_buffer, "exec") == 0) {
@@ -194,8 +217,41 @@ void parse_cmd() {
         unsigned int init_gp;
         asm volatile("la %0, _gp\n\t" : "=r"(init_gp));
         task_create("producer_proc", producer_proc, 0, 0, 0, 1);
-    } else {
+    }
+
+    else if (kernel_strcmp(ps_buffer, "cat") == 0) {
+        result = vfs_cat(param);
+    }
+    else if (kernel_strcmp(ps_buffer, "rm") == 0) {
+        result = vfs_rm(param);
+    }
+    else if (kernel_strcmp(ps_buffer, "ls") == 0) {
+        result = vfs_ls(param);
+    }
+    else if (kernel_strcmp(ps_buffer, "cd") == 0) {
+        result = vfs_cd(param);
+    }
+    else if (kernel_strcmp(ps_buffer, "mkdir") == 0) {
+        result = sys_mkdir(param, 0);
+    }
+    else if (kernel_strcmp(ps_buffer, "mount") == 0) {
+        char a[20], b[20], c[20];
+        int mode;
+        get_a_str(a, &param);
+        get_a_str(b, &param);
+        get_a_str(c, &param);
+        get_num(&mode, &param);
+        //kernel_printf("%s %s %s %d\n", a, b, c, mode);
+        result = do_mount(a, b, c, mode);
+    }
+    else if (kernel_strcmp(ps_buffer, "umount") == 0) {
+        do_umount(param);
+    }
+
+    else {
         kernel_puts(ps_buffer, 0xfff, 0);
         kernel_puts(": command not found\n", 0xfff, 0);
     }
+
+    kernel_memset(ps_buffer, 0, sizeof(ps_buffer));
 }

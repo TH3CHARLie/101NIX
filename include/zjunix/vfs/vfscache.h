@@ -6,9 +6,6 @@
 #define DCACHE_CAPACITY                 16
 #define DCACHE_HASHTABLE_SIZE           16
 
-#define ICACHE_CAPACITY                 16
-#define ICACHE_HASHTABLE_SIZE           16
-
 #define PCACHE_CAPACITY                 64
 #define PCACHE_HASHTABLE_SIZE           16
 
@@ -61,6 +58,10 @@ u32 init_cache();
 void cache_init(struct cache *, u32, u32);
 u32 cache_is_full(struct cache *);
 
+u32 __intHash(u32, u32);
+u32 __stringHash(struct qstr *, u32);
+
+// dcache.c
 void* dcache_look_up(struct cache *, struct condition *);
 void dcache_add(struct cache *, void *);
 void dcache_put_LRU(struct cache *);
@@ -70,6 +71,7 @@ void dcache_put_LRU(struct cache *);
 // void icache_put_LRU(struct cache *);
 // void icache_write_back(void *);
 
+struct vfs_page * pcache_get_page(struct cache * pcache, struct inode * inode, u32 page_no);
 void* pcache_look_up(struct cache *, struct condition *);
 void pcache_add(struct cache *, void *);
 void pcache_put_LRU(struct cache *);
@@ -83,11 +85,8 @@ void release_dentry(struct dentry *);
 void release_inode(struct inode *);
 void release_page(struct vfs_page *);
 
-u32 __intHash(u32, u32);
-u32 __stringHash(struct qstr *, u32);
-
-// utils.c
-u32 read_block(u8 *, u32, u32);
-u32 write_block(u8 *, u32, u32);
+//// utils.c
+//u32 read_block(u8 *, u32, u32);
+//u32 write_block(u8 *, u32, u32);
 
 #endif

@@ -237,13 +237,8 @@ void kfree(void *obj) {
     page = pages + ((unsigned int)obj >> PAGE_SHIFT);
     if (!(page->flag == _PAGE_SLAB))
         return free_pages(
-<<<<<<< HEAD
-                (void *)((unsigned int)obj & ~((1 << PAGE_SHIFT) - 1)),
-                page->bplevel);
-=======
             (void *)((unsigned int)obj & ~((1 << PAGE_SHIFT) - 1)),
             page->bplevel);
->>>>>>> e8a8e0c09a7da7ee5fb0b6d5820536eba1628c5a
 
     return slab_free(page->virtual, obj);
 }

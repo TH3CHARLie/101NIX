@@ -5,10 +5,10 @@
 #include <zjunix/type.h>
 
 // Manipulate data through pointers
-u16 get_u16(u8 *ch);
-u32 get_u32(u8 *ch);
-void set_u16(u8 *ch, u16 num);
-void set_u32(u8 *ch, u32 num);
+extern u16 get_u16(u8 *ch);
+extern u32 get_u32(u8 *ch);
+extern void set_u16(u8 *ch, u16 num);
+extern void set_u32(u8 *ch, u32 num);
 u32 fs_wa(u32 num);
 
 // Get file entry info

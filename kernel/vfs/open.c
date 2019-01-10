@@ -22,7 +22,7 @@ struct file* vfs_open(const u8 *filename, u32 flags, u32 mode){
 
     // 重置flags，因为内外部定义有些地方不一致
     namei_flags = flags;                                 
-    if ( (namei_flags + 1) & O_ACCMODE )
+    if ((namei_flags + 1) & O_ACCMODE)
         namei_flags ++;
     
     // 逐层解析路径，并把文件关联的dentry和vfsmount对象保存在nd结构中
@@ -60,7 +60,7 @@ u32 open_namei(const u8 *pathname, u32 flag, u32 mode, struct nameidata *nd){
     }   
     
     // 设置了O_CREATE，设置LOOKUP_PARENT|LOOKUP_CREATE进行查找
-    if ( err = path_lookup(pathname, LOOKUP_PARENT|LOOKUP_CREATE, nd) )
+    if ( err = path_lookup(pathname, LOOKUP_PARENT | LOOKUP_CREATE, nd) )
         return err;
     
     // 现在nd里面有最后一个分量的目录对应的mnt和dentry对象，还有最后一个分量的信息
@@ -114,29 +114,52 @@ exit:
 // 根据父目录和名字查找对应的目录项（创建模式会调用）
 struct dentry * __lookup_hash(struct qstr *name, struct dentry *base, struct nameidata *nd) {
     u32 err;
-	struct dentry   *dentry;
+	struct dentry   *dentry = NULL;
 	struct inode    *inode;
 
     inode = base->d_inode;
-    // 在目录项高速缓存中寻找，查找文件名和父目录项相符的目录缓冲项
-    struct condition cond;
-    cond.cond1 = (void*) nd->dentry;
-    cond.cond2 = (void*) name;
-    dentry = (struct dentry*) dcache->c_op->look_up(dcache, &cond);
+
+    if (!inode->i_ino)
+        return 0;
+#ifdef DEBUG_EXT2
+    kernel_printf("now in __lookup_hash(%s)\n", name->name);
+#endif
+
+    if (nd) {
+        // 在目录项高速缓存中寻找，查找文件名和父目录项相符的目录缓冲项
+        struct condition cond;
+        cond.cond1 = (void *) nd->dentry;
+        cond.cond2 = (void *) name;
+        dentry = (struct dentry *) dcache->c_op->look_up(dcache, &cond);
+    }
 
     // 如果没有找到，尝试在外存找
 	if (!dentry) {
         // 新dentry首先需要被创建
-        struct dentry *new = d_alloc(base, name);
+        struct dentry * new = d_alloc(base, name);
+
+#ifdef DEBUG_EXT2
+        kernel_printf("now in __lookup_hash(%s), get new dentry: %d\n", name->name, new);
+#endif
+
 		dentry = ERR_PTR(-ENOMEM);
 		if (!new)
             return dentry;
         
         // 尝试在外存中查找需要的dentry对应的inode。若找到，相应的inode会被新建并加入高速缓存，dentry与之的联系也会被建立
 		dentry = inode->i_op->lookup(inode, new, nd);
-		if (!dentry)
-			dentry = new;   // 若相应的inode并没能找到，则需要进一步创建inode。dentry的引用计数暂时需要保持
-		else
+
+#ifdef DEBUG_EXT2
+        kernel_printf("now in __lookup_hash(%s), try to find dentry on sd: %d\n", name->name, dentry);
+#endif
+
+		if (!dentry) {
+#ifdef DEBUG_EXT2
+            kernel_printf("now in __lookup_hash(%s), no inode found\n", name->name);
+#endif
+            dentry = new;   // 若相应的inode并没能找到，则需要进一步创建inode。dentry的引用计数暂时需要保持
+        }
+        else
 			dput(new);
 	}
 
@@ -149,7 +172,7 @@ u32 path_lookup(const u8 * name, u32 flags, struct nameidata *nd) {
 
     // 如果路径名的第一个字符是“/”，那么这个路径名是绝对路径，从根目录开始搜索
     // 否则认为是相对路径，从当前目录开始搜索
-    if ( *name == '/' ) {
+    if (*name == '/') {
         dget(root_dentry);
         nd->mnt     = root_mnt;
         nd->dentry  = root_dentry;
@@ -171,7 +194,7 @@ u32 link_path_walk(const u8 *name, struct nameidata *nd) {
     u32 lookup_flags = nd->flags;
 
     // 跳过第一个分量前的任何‘/’或空格
-    while (*name=='/' || *name == ' ' )  
+    while (*name=='/' || *name == ' ')
         name++;
     if (!(*name))
         goto return_reval;
@@ -181,7 +204,7 @@ u32 link_path_walk(const u8 *name, struct nameidata *nd) {
     inode = nd->dentry->d_inode;
 
     // 把剩余的文件路径名分解为分量，对于每一个分量作以下处理。
-    for( ; ; ){
+    for ( ; ; ) {
         u8 c;
         struct qstr this;
         
@@ -284,6 +307,10 @@ last_component:
 			case 1:
 				goto return_reval;
         }
+
+#ifdef DEBUG_VFS
+        kernel_printf("now do last component: %s\n", this.name);
+#endif
             
         // 既不是“.”又不是“..”的话，只能在目录项高速缓存去查找它
         // 在这一步结束时，next局部变量存放的是指向最后分量名对应的目录项和已安装文件系统描述符的指针
@@ -297,7 +324,8 @@ last_component:
         follow_mount(&next.mnt, &next.dentry);
 
         // 假设要解析的分量不是一个符号链接（符号链接处理略过），最后的目录项对象就是整个查找操作的结果
-        dput(next.dentry);
+        // dput(next.dentry);
+        dput(nd->dentry);
         nd->mnt = next.mnt;
 		nd->dentry = next.dentry;
 
@@ -306,6 +334,7 @@ last_component:
 
 		err = -ENOENT;
 		if (!inode){
+            kernel_printf("[VFS ERROR]: dentry:[%s]'s d_inode not exist!\n", nd->dentry->d_name.name);
             break;
         }
         
@@ -385,9 +414,13 @@ inline void follow_dotdot(struct vfsmount **mnt, struct dentry **dentry){
 }
 
 // 根据父目录和名字查找对应的目录项
-u32 do_lookup(struct nameidata *nd, struct qstr *name, struct path *path){
-    
+u32 do_lookup(struct nameidata *nd, struct qstr *name, struct path *path) {
     struct vfsmount *mnt = nd->mnt;
+
+#ifdef DEBUG_VFS
+    kernel_printf("do_lookup(%s, %s): \n", nd->dentry->d_name.name, name->name);
+#endif
+
     // 在目录项高速缓存中寻找，查找文件名和父目录项相符的目录缓冲项
     struct condition cond;
     cond.cond1 = (void*) nd->dentry;
@@ -421,6 +454,10 @@ struct dentry * real_lookup(struct dentry *parent, struct qstr *name, struct nam
     struct dentry   *result;
     struct inode    *dir = parent->d_inode;
 
+#ifdef DEBUG_VFS
+    kernel_printf("     real_lookup(%s, %s): \n", parent->d_name.name, name->name);
+#endif
+
     // 新建一个dentry对象，并且用parent和name初始化之
     struct dentry *dentry = d_alloc(parent, name);
     result = ERR_PTR(-ENOMEM);
@@ -446,9 +483,8 @@ struct file * dentry_open(struct dentry *dentry, struct vfsmount *mnt, u32 flags
 
     // 从内存分配一个file对象
 	error = -ENFILE;
-	f = (struct file* ) kmalloc ( sizeof(struct file) );
-    INIT_LIST_HEAD(&f->f_list);
-	if (!f)
+	f = (struct file *)kmalloc(sizeof(struct file));
+    if (!f)
         goto cleanup_dentry;
     
     // 初始化file对象的各项参数
@@ -462,16 +498,9 @@ struct file * dentry_open(struct dentry *dentry, struct vfsmount *mnt, u32 flags
 	f->f_pos        = 0;
 	f->f_op         = inode->i_fop;
 	f->f_flags      &= ~(O_CREAT);
+    INIT_LIST_HEAD(&f->f_list);
 
-	return f;
-
-cleanup_all:
-	f->f_dentry     = 0;
-    f->f_vfsmnt     = 0;
-
-cleanup_file:
-    list_del_init(&f->f_list);
-    kfree(f);
+    return f;
 
 cleanup_dentry:
     dput(dentry);
@@ -491,22 +520,24 @@ u32 vfs_close(struct file *filp) {
 }
 
 // 根据相应信息新建一个dentry项，填充相关信息，并放进dentry高速缓存
-struct dentry * d_alloc(struct dentry *parent, const struct qstr *name){  
-    u8* dname;
+struct dentry * d_alloc(struct dentry *parent, const struct qstr *name) {
+    u8 *dname;
     u32 i;
-    struct dentry* dentry;  
-    
-    dentry = (struct dentry *) kmalloc ( sizeof(struct dentry) );
+    struct dentry *dentry;
+
+#ifdef DEBUG_VFS
+    kernel_printf("now in d_alloc(%s, %s)\n", parent->d_name.name, name->name);
+#endif
+
+    dentry = (struct dentry *)kmalloc(sizeof(struct dentry));
     if (!dentry)  
         return 0;
     
-    dname = (u8*) kmalloc ( (name->len + 1)* sizeof(u8*) );
+    dname = (u8 *)kmalloc((name->len + 1) * sizeof(u8));
     kernel_memset(dname, 0, (name->len + 1));
-    for ( i = 0; i < name->len; i++ ){
+    for (i = 0; i < name->len; i++)
         dname[i] = name->name[i];
-    }
-    dname[i] == '\0';
-
+    dname[i] = '\0';
 
     dentry->d_name.name         = dname;
     dentry->d_name.len          = name->len;   
@@ -531,5 +562,10 @@ struct dentry * d_alloc(struct dentry *parent, const struct qstr *name){
 	}
 
     dcache->c_op->add(dcache, (void*)dentry);
+
+#ifdef DEBUG_VFS
+    kernel_printf("now is going to leave d_alloc(%s, %s) %d\n", parent->d_name.name, name->name, dentry);
+#endif
+
     return dentry;
 }

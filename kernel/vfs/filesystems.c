@@ -23,14 +23,19 @@ static struct file_system_type ** find_filesystem(const u8 *name) {
 }
 
 // 注册文件系统函数。将其链接在全局`file_systems`的链表中
-u32 register_filesystem(struct file_system_type * fs) {
-    u32 res = 0;
+struct file_system_type * register_filesystem(struct file_system_type * fs) {
+    struct file_system_type * res;
     struct file_system_type ** p;
+    u32 err;
 
-    if (!fs)
-        return -EINVAL;
-    if (fs->next)
-        return -EBUSY;
+    if (!fs) {
+        err = -EINVAL;
+        goto fail;
+    }
+    if (fs->next) {
+        err = -EBUSY;
+        goto fail;
+    }
 
     INIT_LIST_HEAD(&fs->fs_supers);
     // TODO: lock, 
@@ -40,14 +45,21 @@ u32 register_filesystem(struct file_system_type * fs) {
     p = find_filesystem(fs->name);
 
     // 如果已经注册，则返回错误代码；否则存入
-    if (*p)
-        res = -EBUSY;
-    else
+    if (*p) {
+        kernel_printf("    [WARN]: File system has already registered\n");
+    }
+    else {
+        kernel_printf("    [ OK ]: Successfully registered\n");
         *p = fs;
-    
+    }
+    res = *p;
     // TODO: unlock
     // unlock(&file_systems_lock);
     return res;
+
+fail:
+    kernel_printf_vfs_errno(err);
+    return fs;
 }
 
 u32 unregister_filesystem(struct file_system_type * fs) {
@@ -86,7 +98,7 @@ struct super_block * get_sb(struct file_system_type * fs, const u8 * name) {
     start = &fs->fs_supers;
     for (p = start->next; p != start; p = p->next) {
         sb = container_of(p, struct super_block, s_instances);
-        if (kernel_strcmp(sb->s_name, name))
+        if (kernel_strcmp(sb->s_name, name) == 0)
             return sb;
     }
 
@@ -98,10 +110,21 @@ struct file_system_type *get_fs_type(const u8 *name) {
 }
 
 void print_file_systems() {
+    struct list_head        *  start, * tmp;
+    struct super_block      *  sb;
     struct file_system_type ** p;
 
     kernel_printf("file_systems:\n");
     for (p = &file_systems; *p; p = &(*p)->next) {
-        kernel_printf("    %x: %s\n", p, (*p)->name);
+        kernel_printf("    %x: %s ", p, (*p)->name);
+        start = &((*p)->fs_supers);
+        for (tmp = start->next; tmp != start; tmp = tmp->next) {
+            sb = container_of(tmp, struct super_block, s_instances);
+            if (sb)
+                kernel_printf(" %s ", sb->s_name);
+            else
+                kernel_printf(" wrong! ");
+        }
+        kernel_printf("\n");
     }
 }

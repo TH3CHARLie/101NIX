@@ -4,6 +4,12 @@
 #include <zjunix/type.h>
 #include <zjunix/list.h>
 #include <zjunix/vfs/err.h>
+#include <driver/vga.h>
+
+//#define DEBUG_EXT2
+#define DEBUG_VFS
+//#define DEBUG_FAT32
+//#define DEBUG_SD
 
 #define DPT_MAX_ENTRY_COUNT                     4
 #define DPT_ENTRY_LEN                           16
@@ -18,6 +24,12 @@
 
 #define D_PINNED                                1
 #define D_UNPINNED                              0
+
+// 文件系统类型
+#define PARTITION_TYPE_FAT32					0x0b
+#define PARTITION_TYPE_EXT2						0x83
+#define FAT32_SUPER_MAGIC						0x4d44
+#define EXT2_SUPER_MAGIC						0xEF53
 
 // 文件打开方式，即open函数的入参flags。打开文件时用
 #define O_RDONLY	                            0x0000                   // 为读而打开
@@ -66,6 +78,28 @@ enum {
          FT_DIR    
 };
 
+// VFS文件类型
+#define S_IFMT  00170000
+#define S_IFSOCK 0140000
+#define S_IFLNK	 0120000
+#define S_IFREG  0100000
+#define S_IFBLK  0060000
+#define S_IFDIR  0040000
+#define S_IFCHR  0020000
+#define S_IFIFO  0010000
+#define S_ISUID  0004000
+#define S_ISGID  0002000
+#define S_ISVTX  0001000
+
+#define S_ISLNK(m)	(((m) & S_IFMT) == S_IFLNK)
+#define S_ISREG(m)	(((m) & S_IFMT) == S_IFREG)
+#define S_ISDIR(m)	(((m) & S_IFMT) == S_IFDIR)
+#define S_ISCHR(m)	(((m) & S_IFMT) == S_IFCHR)
+#define S_ISBLK(m)	(((m) & S_IFMT) == S_IFBLK)
+#define S_ISFIFO(m)	(((m) & S_IFMT) == S_IFIFO)
+#define S_ISSOCK(m)	(((m) & S_IFMT) == S_IFSOCK)
+
+
 // 由于C的编译需要
 struct vfs_page;
 struct super_block;
@@ -75,6 +109,7 @@ struct master_boot_record {
     u32                                 m_count;                        // 分区数
     u32                                 m_base[DPT_MAX_ENTRY_COUNT];    // 每个分区的基地址
     u8                                  m_data[SECTOR_SIZE];            // 数据
+	u8 									m_type[DPT_MAX_ENTRY_COUNT];	// 分区类型
 };
 
 // 记录文件系统类型信息
@@ -87,7 +122,7 @@ struct file_system_type {
 // 超级块，一个文件系统对应一个超级块
 struct super_block {
     u8                                  s_dirt;                 // 修改标志
-	u8									s_name;					// 超级块对应的设备名
+	u8									*s_name;				// 超级块对应的设备名
     u32                                 s_blksize;              // 以字节为单位的块大小
     struct file_system_type             *s_type;                // 文件系统类型
     struct dentry                       *s_root;                // 文件系统根目录的目录项对象
@@ -97,10 +132,11 @@ struct super_block {
 };
 
 // TODO 需不需要加mnt_count?
-// TODO 需不需要加mnt_child?
 // 挂载信息，每一个安装对应一个挂载信息
 struct vfsmount {
 	struct list_head                    mnt_hash;               // 用于散列表的指针
+    struct list_head                    mnt_child;              // 挂在父亲的mnt_mounts上，可以用来遍历兄弟
+    struct list_head                    mnt_mounts;             // 子挂载双向链表的头
 	struct vfsmount                     *mnt_parent;	        // 指向父文件系统，这个文件安装在其上
 	struct dentry                       *mnt_mountpoint;        // 指向这个文件系统安装点目录的dentry
 	struct dentry                       *mnt_root;              // 指向这个文件系统根目录的dentry
@@ -120,7 +156,7 @@ struct address_space {
 struct inode {
     u32                                 i_ino;                  // 索引节点号
     u32                                 i_count;                // 当前的引用计数
-    u32                                 i_blocks;               // 块数
+    u32                                 i_blocks;               // inode使用的块数
     u32                                 i_blkbits;              // 块的位数，用于移位
     u32                                 i_blksize;              // 块的字节数
     u32                                 i_size;                 // 对应文件的字节数
@@ -233,9 +269,15 @@ struct inode_operations {
     u32 (*create) (struct inode *,struct dentry *, u32, struct nameidata *);
     // 为包含在一个目录项对象中的文件名对应的索引节点查找目录
     struct dentry * (*lookup) (struct inode *,struct dentry *, struct nameidata *);
-	// mkdir
-	// rmdir
-	// mknod
+	// 在某一目录下，创建一个新的目录
+	u32 (*mkdir) (struct inode *,struct dentry *, u32);
+	// 在某一目录下，递归删除一个目录
+	u32 (*rmdir) (struct inode *,struct dentry *);
+	// 在某一目录下，创建一个设备文件
+	u32 (*mknod) (struct inode *,struct dentry *, int, int);
+	// 重命名
+	u32 (*rename) (struct inode *, struct dentry *,
+				   struct inode *, struct dentry *);
 };
 
 // 已缓存的页的操作函数
@@ -283,34 +325,43 @@ u32 generic_file_flush(struct file *);
 // mount.c
 u32 mount_ext2();
 u32 follow_mount(struct vfsmount **, struct dentry **);
+
+// vfsmount.c
+struct vfsmount * alloc_vfsmnt(const u8 *name);
 struct vfsmount * lookup_mnt(struct vfsmount *, struct dentry *);
 
 // utils.c
+u32 read_block(u8 *, u32, u32);
+u32 write_block(u8 *, u32, u32);
 u16 get_u16(u8 *);
 u32 get_u32(u8 *);
 void set_u16(u8 *, u16);
 void set_u32(u8 *, u32);
-u32 read_block(u8 *, u32, u32);
-u32 write_block(u8 *, u32, u32);
 u32 generic_compare_filename(const struct qstr *, const struct qstr *);
+u32 fat32_compare_filename(const struct qstr *a, const struct qstr *b);
 u32 get_bit(const u8 *, u32);
 void set_bit(u8 *, u32);
 void reset_bit(u8 *, u32);
+u32 find_first_zero_bit(u8 *bitmap, u32 blksize);
+u32 log2(u32 word);
 
 // usr.c
 u32 vfs_cat(const u8 *);
 u32 vfs_cd(const u8 *);
 u32 vfs_ls(const u8 *);
 u32 vfs_rm(const u8 *);
+u32 vfs_mount();
+u32 sys_mkdir(const u8* path, u32 mode);
 
 // filesystems.c
-u32 register_filesystem(struct file_system_type *);
+struct file_system_type * register_filesystem(struct file_system_type * fs);
 u32 unregister_filesystem(struct file_system_type *);
 struct file_system_type *get_fs_type(const u8 *name);
 struct super_block * get_sb(struct file_system_type * fs, const u8 * name);
 void print_file_systems();
 
 // namespace.c
+struct vfsmount *mntget(struct vfsmount *mnt);
 u32 do_mount(const u8 *dev_name, const u8 *dir_name,
 			 const u8 *type_page, u32 flags);
 	u32 do_new_mount(struct nameidata *nd, const u8 *type_page,
@@ -319,6 +370,12 @@ u32 do_mount(const u8 *dev_name, const u8 *dir_name,
 		u32 do_add_mount(struct vfsmount *newmnt, struct nameidata *nd);
 			static u32 graft_tree(struct vfsmount *mnt, struct nameidata *nd);
 	u32 do_move_mount(struct nameidata *nd, const u8 *dev_name);
+u32 do_umount(const u8 *dir_name);
+void path_release(struct nameidata *nd);
 
+// init.c
+struct dentry * alloc_dentry();
+struct inode * alloc_inode(struct super_block * sb);
+struct vfs_page * alloc_vfspage(u32 location, struct address_space *mapping);
 
 #endif

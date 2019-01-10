@@ -36,7 +36,7 @@ u32 vfs_write(struct file *file, char *buf, u32 count, u32 *pos) {
 }
 
 // 通用读文件方法
-u32 generic_file_read(struct file *file, u8 *buf, u32 count, u32 *ppos){
+u32 generic_file_read(struct file *file, u8 *buf, u32 count, u32 *ppos) {
 
     u32 pos;
     u32 start;
@@ -49,9 +49,11 @@ u32 generic_file_read(struct file *file, u8 *buf, u32 count, u32 *ppos){
     u32 endPageCur;
     u32 readCount;
     u32 r_page;
-    struct condition    cond;
-    struct inode        *inode;
-    struct vfs_page     *curPage;
+    u32 page_no, start_page_no, end_page_no;
+    u32 start_page_cur, end_page_cur, read_count;
+    struct condition     cond;
+    struct inode         *inode;
+    struct vfs_page      *curPage;
     struct address_space *mapping;
    
     inode = file->f_dentry->d_inode;
@@ -62,51 +64,76 @@ u32 generic_file_read(struct file *file, u8 *buf, u32 count, u32 *ppos){
     blksize = inode->i_blksize;
     startPageNo = pos / blksize;
     startPageCur = pos % blksize;
+
+    start_page_no = pos / blksize;
+    start_page_cur = pos % blksize;
+
     // endPage 这一页是不包含的
     if (pos + count < inode->i_size){
-        endPageNo = ( pos + count ) / blksize;
+        endPageNo  = ( pos + count ) / blksize;
         endPageCur = ( pos + count ) % blksize;
+        end_page_no  = (pos + count) / blksize;
+        end_page_cur = (pos + count) % blksize;
     }
     else{
         endPageNo = inode->i_size / blksize;
         endPageCur = inode->i_size % blksize;
+        end_page_no  = inode->i_size / blksize;
+        end_page_cur = inode->i_size % blksize;
     }
 
     // 读取每一文件页
     cur = 0;
-    for ( pageNo = startPageNo; pageNo <= endPageNo; pageNo ++){
-        r_page = mapping->a_op->bmap(inode, pageNo);                // 文件页地址到相对物理页地址
+    for (pageNo = startPageNo; pageNo <= endPageNo; pageNo++) {
 
-        // 先在页高速缓存中找到缓存请求数据的 page
-        cond.cond1 = (void*)(&r_page);
-        cond.cond2 = (void*)(file->f_dentry->d_inode);
-        curPage = (struct vfs_page *) pcache->c_op->look_up(pcache, &cond);
-
-        // 如果该页不在高速缓存，向外存发出添页请求，并把该页添加进页高速缓存
-        if ( curPage == 0 ){
-            curPage = (struct vfs_page *) kmalloc ( sizeof(struct vfs_page) );
-            if (!curPage)
-                goto out;
-
-            curPage->p_state = P_CLEAR;
-            curPage->p_location = r_page;
-            curPage->p_mapping = mapping;
-            INIT_LIST_HEAD(&(curPage->p_hash));
-            INIT_LIST_HEAD(&(curPage->p_LRU));
-            INIT_LIST_HEAD(&(curPage->p_list));
-
-            if ( mapping->a_op->readpage(curPage) ){
-                release_page(curPage);
-                goto out;
-            }
-
-            pcache->c_op->add(pcache, (void*)curPage);
-            list_add(&(curPage->p_list), &(mapping->a_cache));
+        curPage = pcache_get_page(pcache, inode, pageNo);
+        if (IS_ERR(curPage)) {
+            kernel_printf("[READ ERROR]\n");
+            break;
         }
 
+//        r_page = mapping->a_op->bmap(inode, pageNo);                // 文件页地址到相对物理页地址
+//
+//        // 先在页高速缓存中找到缓存请求数据的 page
+//        cond.cond1 = (void*)(&r_page);
+//        cond.cond2 = (void*)(file->f_dentry->d_inode);
+//        curPage = (struct vfs_page *) pcache->c_op->look_up(pcache, &cond);
+//
+//        // 如果该页不在高速缓存，向外存发出添页请求，并把该页添加进页高速缓存
+//        if (curPage == 0) {
+//            curPage = (struct vfs_page *) kmalloc ( sizeof(struct vfs_page) );
+//            if (!curPage)
+//                goto out;
+//
+//            curPage->p_state = P_CLEAR;
+//            curPage->p_location = r_page;
+//            curPage->p_mapping = mapping;
+//            INIT_LIST_HEAD(&(curPage->p_hash));
+//            INIT_LIST_HEAD(&(curPage->p_LRU));
+//            INIT_LIST_HEAD(&(curPage->p_list));
+//
+//            if ( mapping->a_op->readpage(curPage) ){
+//                release_page(curPage);
+//                goto out;
+//            }
+//
+//            pcache->c_op->add(pcache, (void*)curPage);
+//            list_add(&(curPage->p_list), &(mapping->a_cache));
+//        }
+
         // 拷贝数据
-        if ( pageNo == startPageNo ){
-            if ( startPageNo == endPageNo ){
+        page_no = pageNo;
+        if (page_no == start_page_no) {
+            read_count = page_no == end_page_no ?
+                         end_page_cur - start_page_cur : blksize - start_page_cur;
+            //kernel_memcpy(buf, curPage->p_data + start_page_cur, read_count);
+        } else {
+            read_count = page_no == end_page_no ? end_page_cur : blksize;
+            //kernel_memcpy(buf + cur, curPage->p_data, read_count);
+        }
+
+        if (pageNo == startPageNo) {
+            if (startPageNo == endPageNo) {
                 readCount = endPageCur - startPageCur;
                 kernel_memcpy(buf, curPage->p_data + startPageCur, readCount);
             }
@@ -115,7 +142,7 @@ u32 generic_file_read(struct file *file, u8 *buf, u32 count, u32 *ppos){
                 kernel_memcpy(buf, curPage->p_data + startPageCur, readCount);
             }
         }
-        else if ( pageNo == endPageNo ){
+        else if (pageNo == endPageNo) {
             readCount = endPageCur;
             kernel_memcpy(buf + cur, curPage->p_data, readCount);
         }

@@ -14,6 +14,7 @@
 #include <zjunix/syscall.h>
 #include <zjunix/time.h>
 #include <zjunix/vm.h>
+#include <zjunix/vfs/vfs.h>
 #include "../usr/ps.h"
 
 #pragma GCC push_options
@@ -69,9 +70,12 @@ void init_kernel() {
     log(LOG_OK, "Slab.");
     log(LOG_END, "Memory Modules.");
     // File system
-    log(LOG_START, "File System.");
-    init_fs();
-    log(LOG_END, "File System.");
+//    log(LOG_START, "File System.");
+//    init_fs();
+//    log(LOG_END, "File System.");
+    log(LOG_START, "Virtual File System.");
+    init_vfs();
+    log(LOG_END, "Virtual File System.");
     // System call
     log(LOG_START, "System Calls.");
     init_syscall();
