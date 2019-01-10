@@ -145,11 +145,8 @@ void slab_free(struct kmem_cache *cache, void *object) {
     unsigned int *ptr;
     struct slab_head *s_head = (struct slab_head *)KMEM_ADDR(opage, pages);
 
-    if (!(s_head->nr_objs)) {
-        kernel_printf("ERROR : slab_free error!\n");
-        // die();
-        while (1)
-            ;
+    if ((s_head->nr_objs)) {
+        return;
     }
 
     ptr = (unsigned int *)((unsigned char *)object + cache->offset);
@@ -186,22 +183,12 @@ unsigned int get_slab(unsigned int size) {
 }
 
 void *kmalloc(unsigned int size) {
-    static unsigned int addr = 0x87FF0000;
-    size += (1 << PAGE_SHIFT) - 1;
-    size &= ~((1 << PAGE_SHIFT) - 1);
-    unsigned int result = addr;
-    addr -= size;
-    return (void *)result;
-
     struct kmem_cache *cache;
     unsigned int bf_index;
 
     if (!size) return 0;
-
     // if the size larger than the max size of slab system, then call buddy to
     // solve this
-    size += (1 << PAGE_SHIFT) - 1;
-    size &= ~((1 << PAGE_SHIFT) - 1);
     if (size > kmalloc_caches[PAGE_SHIFT - 1].objsize) {
         unsigned int bplevel = 0;
         unsigned int curr_size = 1 << PAGE_SHIFT;
@@ -211,8 +198,7 @@ void *kmalloc(unsigned int size) {
             curr_size <<= 1;
             bplevel++;
         }
-        return (void *)(KERNEL_ENTRY |
-                        (unsigned int)alloc_pages(size >> PAGE_SHIFT));
+        return (void *)(KERNEL_ENTRY | (unsigned int)alloc_pages(bplevel));
     }
 
     bf_index = get_slab(size);
@@ -226,19 +212,13 @@ void *kmalloc(unsigned int size) {
 }
 
 void kfree(void *obj) {
-    // there is a bug in the whole fxxking physical memory system
-    // do not free space now
-    // fix it later
-    return;
-
     struct page *page;
-
     obj = (void *)((unsigned int)obj & (~KERNEL_ENTRY));
     page = pages + ((unsigned int)obj >> PAGE_SHIFT);
     if (!(page->flag == _PAGE_SLAB))
-        return free_pages(
-            (void *)((unsigned int)obj & ~((1 << PAGE_SHIFT) - 1)),
-            page->bplevel);
-
-    return slab_free(page->virtual, obj);
+        free_pages((void *)((unsigned int)obj & ~((1 << PAGE_SHIFT) - 1)),
+                   page->bplevel);
+    else {
+        slab_free(page->virtual, obj);
+    }
 }
