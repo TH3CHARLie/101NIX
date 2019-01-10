@@ -12,7 +12,7 @@ extern int cursor_freq;
 #define VGA_BLUE  0xf00
 #define VGA_BLACK 0x000
 #define VGA_WHITE 0xfff
-
+#define VGA_YELLOW 0x0ff
 struct screen_color {
     int front;
     int background;

@@ -15,7 +15,7 @@
 #include <zjunix/time.h>
 #include <zjunix/vm.h>
 #include "../usr/ps.h"
-
+#include <zjunix/vfs/vfs.h>
 #pragma GCC push_options
 #pragma GCC optimize("O0")
 
@@ -70,7 +70,7 @@ void init_kernel() {
     log(LOG_END, "Memory Modules.");
     // File system
     log(LOG_START, "File System.");
-    init_fs();
+    init_vfs();
     log(LOG_END, "File System.");
     // System call
     log(LOG_START, "System Calls.");

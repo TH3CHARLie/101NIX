@@ -115,6 +115,8 @@ void task_wakeup(pid_t pid);
 
 struct task_struct *get_current_task();
 
+int task_exec_from_file(char *filename);
+
 int print_proc();
 void print_rbtree(struct rb_node *tree, struct rb_node *parent, int direction);
 #endif  // _101NIX_SCHED_H_

@@ -14,6 +14,9 @@ void init_syscall() {
 
     // register all syscalls here
     register_syscall(4, syscall4);
+    register_syscall(5, syscall5);
+    register_syscall(6, syscall6);
+    register_syscall(7, syscall7);
 
     // page share
     register_syscall(50, syscall50);
@@ -56,6 +59,21 @@ void register_syscall(int index, sys_fn fn) {
 
 void syscall4(unsigned int status, unsigned int cause, context* pt_context) {
     kernel_puts((unsigned char*)pt_context->a0, 0xfff, 0);
+}
+
+// print int 
+void syscall5(unsigned int status, unsigned int cause, context* pt_context) {
+    kernel_printf("%d", (int)pt_context->a0);
+}
+
+// print str
+void syscall6(unsigned int status, unsigned int cause, context* pt_context) {
+    kernel_printf("%s", (unsigned char*)pt_context->a0);
+}
+
+// print hex
+void syscall7(unsigned int status, unsigned int cause, context* pt_context) {
+    kernel_printf("%x", (unsigned int)pt_context->a0);
 }
 
 void syscall50(unsigned int status, unsigned int cause, context* pt_context) {
