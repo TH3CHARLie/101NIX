@@ -8,10 +8,13 @@ unsigned int firstusercode_start;
 unsigned int firstusercode_len;
 
 // const value for ENUM of mem_type
-char *mem_msg[] = {"Kernel code/data", "Mm Bitmap", "Vga Buffer", "Kernel page directory", "Kernel page table", "Dynamic", "Reserved"};
+char *mem_msg[] = {
+    "Kernel code/data",  "Mm Bitmap", "Vga Buffer", "Kernel page directory",
+    "Kernel page table", "Dynamic",   "Reserved"};
 
 // set the content of struct bootmm_info
-void set_mminfo(struct bootmm_info *info, unsigned int start, unsigned int end, unsigned int type) {
+void set_mminfo(struct bootmm_info *info, unsigned int start, unsigned int end,
+                unsigned int type) {
     info->start = start;
     info->end = end;
     info->type = type;
@@ -28,7 +31,8 @@ unsigned char bootmmmap[MACHINE_MMSIZE >> PAGE_SHIFT];
 for deleting
 --
 */
-unsigned int insert_mminfo(struct bootmm *mm, unsigned int start, unsigned int end, unsigned int type) {
+unsigned int insert_mminfo(struct bootmm *mm, unsigned int start,
+                           unsigned int end, unsigned int type) {
     unsigned int i;
     for (i = 0; i < mm->cnt_infos; i++) {
         if (mm->info[i].type != type)
@@ -56,14 +60,14 @@ unsigned int insert_mminfo(struct bootmm *mm, unsigned int start, unsigned int e
         }
         if (mm->info[i].start - 1 == end) {
             // new-in mm is connecting to the following one
-            kernel_printf("type of %d : %x, type: %x", i, mm->info[i].type, type);
+            kernel_printf("type of %d : %x, type: %x", i, mm->info[i].type,
+                          type);
             mm->info[i].start = start;
             return 4;
         }
     }
 
-    if (mm->cnt_infos >= MAX_INFO)
-        return 0;  // cannot
+    if (mm->cnt_infos >= MAX_INFO) return 0;  // cannot
     set_mminfo(mm->info + mm->cnt_infos, start, end, type);
     ++mm->cnt_infos;
     return 1;  // individual segment(non-connecting to any other)
@@ -73,7 +77,8 @@ unsigned int insert_mminfo(struct bootmm *mm, unsigned int start, unsigned int e
  * (set the former one.end = split_start-1)
  * (set the latter one.start = split_start)
  */
-unsigned int split_mminfo(struct bootmm *mm, unsigned int index, unsigned int split_start) {
+unsigned int split_mminfo(struct bootmm *mm, unsigned int index,
+                          unsigned int split_start) {
     unsigned int start, end;
     unsigned int tmp;
 
@@ -100,8 +105,7 @@ unsigned int split_mminfo(struct bootmm *mm, unsigned int index, unsigned int sp
 // remove the mm->info[index]
 void remove_mminfo(struct bootmm *mm, unsigned int index) {
     unsigned int i;
-    if (index >= mm->cnt_infos)
-        return;
+    if (index >= mm->cnt_infos) return;
 
     if (index + 1 < mm->cnt_infos) {
         for (i = (index + 1); i < mm->cnt_infos; i++) {
@@ -152,7 +156,8 @@ void set_maps(unsigned int s_pfn, unsigned int cnt, unsigned char value) {
  * @param e_pfn	   : the allocating end page frame node
  * return value  = 0 :: allocate failed, else return index(page start)
  */
-unsigned char *find_pages(unsigned int page_cnt, unsigned int s_pfn, unsigned int e_pfn, unsigned int align_pfn) {
+unsigned char *find_pages(unsigned int page_cnt, unsigned int s_pfn,
+                          unsigned int e_pfn, unsigned int align_pfn) {
     unsigned int index, tmp;
     unsigned int cnt;
 
@@ -168,8 +173,7 @@ unsigned char *find_pages(unsigned int page_cnt, unsigned int s_pfn, unsigned in
         cnt = page_cnt;
         tmp = index;
         while (cnt) {
-            if (tmp >= e_pfn)
-                return 0;
+            if (tmp >= e_pfn) return 0;
             // reaching end, but allocate request still cannot be satisfied
 
             if (bmm.s_map[tmp] == PAGE_FREE) {
@@ -180,7 +184,8 @@ unsigned char *find_pages(unsigned int page_cnt, unsigned int s_pfn, unsigned in
                 break;
             }
         }
-        if (cnt == 0) {  // cnt = 0 indicates that the specified page-sequence found
+        if (cnt ==
+            0) {  // cnt = 0 indicates that the specified page-sequence found
             bmm.last_alloc_end = tmp - 1;
             set_maps(index, page_cnt, PAGE_USED);
             return (unsigned char *)(index << PAGE_SHIFT);
@@ -192,7 +197,8 @@ unsigned char *find_pages(unsigned int page_cnt, unsigned int s_pfn, unsigned in
     return 0;
 }
 
-unsigned char *bootmm_alloc_pages(unsigned int size, unsigned int type, unsigned int align) {
+unsigned char *bootmm_alloc_pages(unsigned int size, unsigned int type,
+                                  unsigned int align) {
     unsigned int size_inpages;
     unsigned char *res;
 
@@ -201,9 +207,11 @@ unsigned char *bootmm_alloc_pages(unsigned int size, unsigned int type, unsigned
     size_inpages = size >> PAGE_SHIFT;
 
     // in normal case, going forward is most likely to find suitable area
-    res = find_pages(size_inpages, bmm.last_alloc_end + 1, bmm.max_pfn, align >> PAGE_SHIFT);
+    res = find_pages(size_inpages, bmm.last_alloc_end + 1, bmm.max_pfn,
+                     align >> PAGE_SHIFT);
     if (res) {
-        insert_mminfo(&bmm, (unsigned int)res, (unsigned int)res + size - 1, type);
+        insert_mminfo(&bmm, (unsigned int)res, (unsigned int)res + size - 1,
+                      type);
         return res;
     }
 
@@ -211,7 +219,8 @@ unsigned char *bootmm_alloc_pages(unsigned int size, unsigned int type, unsigned
     // will appear in the front part
     res = find_pages(size_inpages, 0, bmm.last_alloc_end, align >> PAGE_SHIFT);
     if (res) {
-        insert_mminfo(&bmm, (unsigned int)res, (unsigned int)res + size - 1, type);
+        insert_mminfo(&bmm, (unsigned int)res, (unsigned int)res + size - 1,
+                      type);
         return res;
     }
     return 0;  // not found, return NULL
@@ -221,6 +230,7 @@ void bootmap_info(unsigned char *msg) {
     unsigned int index;
     kernel_printf("%s :\n", msg);
     for (index = 0; index < bmm.cnt_infos; ++index) {
-        kernel_printf("\t%x-%x : %s\n", bmm.info[index].start, bmm.info[index].end, mem_msg[bmm.info[index].type]);
+        kernel_printf("\t%x-%x : %s\n", bmm.info[index].start,
+                      bmm.info[index].end, mem_msg[bmm.info[index].type]);
     }
 }

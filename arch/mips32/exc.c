@@ -8,7 +8,8 @@
 
 exc_fn exceptions[32];
 
-void do_exceptions(unsigned int status, unsigned int cause, context* pt_context) {
+void do_exceptions(unsigned int status, unsigned int cause,
+                   context* pt_context) {
     int index = cause >> 2;
     index &= 0x1f;
     if (exceptions[index]) {
@@ -17,12 +18,14 @@ void do_exceptions(unsigned int status, unsigned int cause, context* pt_context)
         task_struct* pcb;
         unsigned int badVaddr;
         asm volatile("mfc0 %0, $8\n\t" : "=r"(badVaddr));
-        pcb = get_curr_pcb();
-        kernel_printf("\nProcess %s exited due to exception cause=%x;\n", pcb->name, cause);
-        kernel_printf("status=%x, EPC=%x, BadVaddr=%x\n", status, pcb->context.epc, badVaddr);
-        pc_kill_syscall(status, cause, pt_context);
-        while (1)
-            ;
+        pcb = get_current_task();
+        kernel_printf("\nProcess %s exited due to exception cause=%x;\n",
+                      pcb->name, cause);
+        kernel_printf("status=%x, EPC=%x, BadVaddr=%x *BadVaddr=%x\n", status,
+                      pcb->context.epc, badVaddr, *(unsigned int*)(badVaddr));
+        task_kill(pcb->pid);
+        // while (1)
+        //     ;
     }
 }
 

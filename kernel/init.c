@@ -9,10 +9,15 @@
 #include <zjunix/fs/fat.h>
 #include <zjunix/log.h>
 #include <zjunix/pc.h>
+#include <zjunix/semaphore.h>
 #include <zjunix/slab.h>
 #include <zjunix/syscall.h>
 #include <zjunix/time.h>
+#include <zjunix/vm.h>
 #include "../usr/ps.h"
+#include <zjunix/vfs/vfs.h>
+#pragma GCC push_options
+#pragma GCC optimize("O0")
 
 void machine_info() {
     int row;
@@ -21,21 +26,25 @@ void machine_info() {
     row = cursor_row;
     col = cursor_col;
     cursor_row = 29;
-    kernel_printf("%s", "Created by System Interest Group, Zhejiang University.");
+    kernel_printf("%s",
+                  "Created by System Interest Group, Zhejiang University.");
     cursor_row = row;
     cursor_col = col;
     kernel_set_cursor();
 }
 
-#pragma GCC push_options
-#pragma GCC optimize("O0")
+void useless() {
+    while (1) {
+        ;
+    }
+}
+
 void create_startup_process() {
-    unsigned int init_gp;
-    asm volatile("la %0, _gp\n\t" : "=r"(init_gp));
-    pc_create(1, ps, (unsigned int)kmalloc(4096) + 4096, init_gp, "powershell");
+    task_create("powershell", ps, 0, 0, 0, 0);
     log(LOG_OK, "Shell init");
-    pc_create(2, system_time_proc, (unsigned int)kmalloc(4096) + 4096, init_gp, "time");
+    task_create("time_proc", system_time_proc, 0, 0, 0, 0);
     log(LOG_OK, "Timer init");
+    task_create("idle", useless, 0, 0, 1, 0);
 }
 #pragma GCC pop_options
 
@@ -48,6 +57,8 @@ void init_kernel() {
     // Drivers
     init_vga();
     init_ps2();
+    // Virtual Memory
+    init_vm();
     // Memory management
     log(LOG_START, "Memory Modules.");
     init_bootmm();
@@ -59,7 +70,7 @@ void init_kernel() {
     log(LOG_END, "Memory Modules.");
     // File system
     log(LOG_START, "File System.");
-    init_fs();
+    init_vfs();
     log(LOG_END, "File System.");
     // System call
     log(LOG_START, "System Calls.");
@@ -67,9 +78,13 @@ void init_kernel() {
     log(LOG_END, "System Calls.");
     // Process control
     log(LOG_START, "Process Control Module.");
-    init_pc();
+    init_task_module();
     create_startup_process();
     log(LOG_END, "Process Control Module.");
+    // Semaphore
+    log(LOG_START, "Semaphore.");
+    semaphore_init();
+    log(LOG_END, "Semaphore.");
     // Interrupts
     log(LOG_START, "Enable Interrupts.");
     init_interrupts();

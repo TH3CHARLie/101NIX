@@ -1,4 +1,4 @@
-OBJS := syscall.o syscall4.o
+OBJS := syscall.o
 DIRS := 
 
 include $(SUB_MAKE_INCLUDE)
