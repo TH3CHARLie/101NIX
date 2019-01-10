@@ -66,7 +66,7 @@ int sd_read_sector_blocking(int id, void* buffer) {
         // Error encountered
         result = des;
     }
-    ret:
+ret:
     // Enable interrupts
     enable_interrupts();
     return result;
@@ -83,8 +83,8 @@ int sd_write_sector_blocking(int id, void* buffer) {
     SD_CTRL[15] = 0;
     // Wait bus until clear
     asm volatile(
-    "nop\n\t"
-            "nop\n\t");
+        "nop\n\t"
+        "nop\n\t");
 
     // Start writing
     int* buffer_int = (int*)buffer;
@@ -102,13 +102,13 @@ int sd_write_sector_blocking(int id, void* buffer) {
     do {
         des = SD_CTRL[15];
     } while (des == 0);
-
+    
     if (des & 1) {
         result = 0;
     } else {
         result = des;
     }
-    ret:
+ret:
     // Enable interrupts
     enable_interrupts();
     return result;
@@ -123,9 +123,9 @@ u32 sd_read_block(unsigned char* buf, unsigned long addr, unsigned long count) {
             goto error;
         }
     }
-    ok:
+ok:
     return 0;
-    error:
+error:
     return 1;
 }
 
@@ -138,9 +138,9 @@ u32 sd_write_block(unsigned char* buf, unsigned long addr, unsigned long count) 
             goto error;
         }
     }
-    ok:
+ok:
     return 0;
-    error:
+error:
     return 1;
 }
 

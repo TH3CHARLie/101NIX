@@ -564,7 +564,7 @@ struct dentry * d_alloc(struct dentry *parent, const struct qstr *name) {
     dcache->c_op->add(dcache, (void*)dentry);
 
 #ifdef DEBUG_VFS
-    kernel_printf("now is going to leave d_alloc(%s, %s) %d\n", parent->d_name.name, name->name, dentry);
+    kernel_printf("now is going to leave d_alloc(%s, %s) %x\n", parent->d_name.name, name->name, dentry);
 #endif
 
     return dentry;
