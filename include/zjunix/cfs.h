@@ -12,7 +12,7 @@ static const unsigned int sysctl_sched_min_granularity_ns = 1200000;
 // 4:3 to min granularity
 static const unsigned int sysctl_sched_wakeup_granularity = 1600000;
 
-static const unsigned int sysctl_sched_time_unit = 200000;
+static const unsigned int sysctl_sched_time_unit = 20000;
 
 static const unsigned int sysctl_sched_nr_latency = 8;
 /*

@@ -142,10 +142,10 @@ void task_tick(unsigned int status, unsigned int cause, context *pc_context) {
     finish:
         cfs_rq.NEED_SCHED = false;
     }
-    //   if (sem)
-    //   kernel_printf("schedule name %s pid=%d vruntime=%d\n",
+    //   kernel_printf("[schedule]name=%s pid=%d nice=%d vruntime=%d\n",
     //   current_task->name,
-    //                 current_task->pid, current_task->se.vruntime);
+    //                 current_task->pid, current_task->nice, current_task->se.vruntime);
+    // sleep(1000 * 1000 * 10);
     if (old_ie) {
         asm volatile("mtc0 $zero, $9\n\t");
         enable_interrupts();
@@ -176,6 +176,8 @@ finish:
         enable_interrupts();
     }
 }
+
+
 void task_create(char *task_name, void (*entry)(unsigned int argc, void *args),
                  unsigned int argc, void *args, int nice, int user_mode) {
     union task_union *tmp =
@@ -186,7 +188,7 @@ void task_create(char *task_name, void (*entry)(unsigned int argc, void *args),
     }
     struct task_struct *new_task = &(tmp->task);
     kernel_strcpy(new_task->name, task_name);
-    new_task->nice = 0;
+    new_task->nice = nice;
     new_task->static_prio = new_task->nice + 20;
     new_task->prio = new_task->nice + 20;
     new_task->pid = atomic_pid++;
@@ -254,7 +256,7 @@ void task_kill(pid_t pid) {
     }
     update_min_vruntime(&cfs_rq);
     if (to_be_freed) {
-        kfree(to_be_freed);
+        // kfree(to_be_freed);
     }
     if (old_ie) {
         enable_interrupts();
@@ -337,8 +339,8 @@ void task_wakeup(pid_t pid) {
     update_min_vruntime(&cfs_rq);
     if (old_ie) {
         enable_interrupts();
-        ret_from_sched_syscall();
     }
+    ret_from_sched_syscall();
 }
 
 void task_kill_syscall(unsigned int status, unsigned int cause,
@@ -384,7 +386,7 @@ void task_exit_syscall(unsigned int status, unsigned int cause,
         : "=r"(current_clock));
     u32 delta = current_clock / sysctl_sched_time_unit;
     // kernel_printf("task_kill: delta=%d\n", delta);
-    update_curr(&cfs_rq, 100);
+    update_curr(&cfs_rq, 10000);
     // print_rbtree(cfs_rq.tasks_timeline.rb_node, NULL, 0);
     // dequeue_task_fair(&cfs_rq, current_task);
     // cfs_rq.rb_leftmost = rb_first(&cfs_rq.tasks_timeline);
@@ -396,14 +398,14 @@ void task_exit_syscall(unsigned int status, unsigned int cause,
                   current_task->name, current_task->pid);
     struct task_struct *next = pick_next_task_fair(&cfs_rq);
     if (next == current_task) {
-        // kernel_printf("next_name=%s, vtime=%d, cur_name=%s, vtime=%d\n",
-        // next->name,
-        //               next->se.vruntime, current_task->name,
-        //               current_task->se.vruntime);
-        // kernel_printf("task_kill: fatal\n");
-        // kernel_printf("cfs vruntime=%d\n", cfs_rq.min_vruntime);
-        next = init;
-        // return;
+        kernel_printf("next_name=%s, vtime=%d, cur_name=%s, vtime=%d\n",
+        next->name,
+                      next->se.vruntime, current_task->name,
+                      current_task->se.vruntime);
+        kernel_printf("task_kill: fatal\n");
+        kernel_printf("cfs vruntime=%d\n", cfs_rq.min_vruntime);
+         next = init;
+         return;
     }
     copy_context(&(next->context), pc_context);
     current_task = next;
