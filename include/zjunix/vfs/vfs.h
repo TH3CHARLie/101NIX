@@ -322,7 +322,7 @@ u32 vfs_rm(const u8 *);
 u32 vfs_mount();
 
 // filesystems.c
-u32 register_filesystem(struct file_system_type *);
+struct file_system_type * register_filesystem(struct file_system_type * fs);
 u32 unregister_filesystem(struct file_system_type *);
 struct file_system_type *get_fs_type(const u8 *name);
 struct super_block * get_sb(struct file_system_type * fs, const u8 * name);

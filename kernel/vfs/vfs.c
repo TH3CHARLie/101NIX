@@ -54,13 +54,13 @@ u32 init_vfs(){
     }
     log(LOG_OK, "init_fat32()");
 
-    u8 DEV_NAME[5] = "sda0";
+    u8 DEV_NAME[10] = "/dev/sda0";
     for (i = 1; i < MBR->m_count; i++) {
-        DEV_NAME[3] = i - '0';
+        DEV_NAME[8] = '0' + i + 1;
         if (MBR->m_type[i] == PARTITION_TYPE_FAT32) {
 
         } else if (MBR->m_type[i] == PARTITION_TYPE_EXT2) {
-            err = init_ext2(MBR->m_base[i]);            // 第二个分区为EXT2，读取元数据。并挂载EXT2文件系统与指定位置（/ext）
+            err = init_ext2(MBR->m_base[i], DEV_NAME);            // 第二个分区为EXT2，读取元数据。并挂载EXT2文件系统与指定位置（/ext）
             if (IS_ERR_VALUE(err)) {
                 log(LOG_FAIL, "init_ext2()");
                 goto vfs_init_err;
@@ -68,9 +68,6 @@ u32 init_vfs(){
             log(LOG_OK, "init_ext2()");
         }
     }
-
-    do_mount("/dev/sd2", "/ext2", "ext2", 0);
-    do_mount("/ext2", "/aaa", "ext2", MS_MOVE);
 
 //    err = mount_ext2();                         // 挂载EXT2文件系统与指定位置（/ext），读取元数据
 //    if ( IS_ERR_VALUE(err) ){
@@ -83,7 +80,7 @@ u32 init_vfs(){
 
     return 0;
 
-vfs_init_err:
+    vfs_init_err:
     kernel_printf_vfs_errno(err);                 // 发生错误，则打印错误代码
     return err;
 }
@@ -99,8 +96,8 @@ u32 vfs_read_MBR(){
     MBR = (struct master_boot_record*)kmalloc(sizeof(struct master_boot_record));
     if (MBR == 0)
         return -ENOMEM;
-    
-    kernel_memset(MBR->m_data, 0, sizeof(MBR->m_data));
+
+    kernel_memset(MBR->m_data, 0, sizeof(u8) * SECTOR_SIZE);
     if (read_block(MBR->m_data, 0, 1))              // MBR在外存的0号扇区
         goto vfs_read_MBR_err;
 
@@ -119,7 +116,7 @@ u32 vfs_read_MBR(){
         ptr_lba  += DPT_ENTRY_LEN;
         ptr_type += DPT_ENTRY_LEN;
 #ifdef DEBUG_VFS
-        kernel_printf("   MBR[%d]: base: %d %d\n", MBR->m_count, part_lba, part_type);
+        kernel_printf("   MBR[%d]: base: %u %u\n", MBR->m_count, part_lba, part_type);
 #endif
     }
 
@@ -133,7 +130,7 @@ u32 vfs_read_MBR(){
 
     return 0;
 
-vfs_read_MBR_err:
+    vfs_read_MBR_err:
     kfree(MBR);
     return -EIO;
 }
@@ -141,7 +138,7 @@ vfs_read_MBR_err:
 // 初始化文件系统
 // TODO init_rootfs()
 u32 init_file_systems() {
-    
+
     file_systems = (struct file_system_type *)kmalloc(sizeof(struct file_system_type));
     if (file_systems == 0)
         return -ENOMEM;
@@ -155,7 +152,9 @@ u32 init_file_systems() {
 
 
 void kernel_printf_vfs_errno(u32 err){
-    if (err == -ENOENT) {
+    if (err == -EPERM) {
+        kernel_printf("[VFS ERROR]: Operation not permitted\n");
+    } else if (err == -ENOENT) {
         kernel_printf("[VFS ERROR]: No such file or directory\n");
     } else if (err == -EIO) {
         kernel_printf("[VFS ERROR]: I/O error\n");
@@ -179,6 +178,8 @@ void kernel_printf_vfs_errno(u32 err){
         kernel_printf("[VFS ERROR]: Invalid argument\n");
     } else if (err == -ENFILE) {
         kernel_printf("[VFS ERROR]: File table overflow\n");
+    } else if (err == -ENOSPC) {
+        kernel_printf("[VFS ERROR]: No space left on device\n");
     } else if (err == -ELOOP) {
         kernel_printf("[VFS ERROR]: Too many symbolic links encountered\n");
     } else {

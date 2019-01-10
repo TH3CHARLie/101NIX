@@ -26,13 +26,13 @@ u32 mount_ext2(){
         if (kernel_strcmp(mnt->mnt_sb->s_type->name, "ext2") == 0)
             break;
     }
-        
+
     if (a == begin)
         return -ENOENT;
-    
+
     qstr.name = "ext2";
     qstr.len = 4;
-    
+
 
     // 创建 /ext2 对应的dentry。而且暂时不需要创建对应的inode
     dentry = d_alloc(root_dentry, &qstr);
@@ -43,7 +43,7 @@ u32 mount_ext2(){
     dentry->d_inode = mnt->mnt_root->d_inode;
     mnt->mnt_mountpoint = dentry;
     mnt->mnt_parent = root_mnt;
-    
+
     return 0;
 }
 
@@ -60,21 +60,21 @@ u32 follow_mount(struct vfsmount **mnt, struct dentry **dentry){
 
     // 查找挂载的对象
     while ((*dentry)->d_mounted) {
-		struct vfsmount *mounted = lookup_mnt(*mnt, *dentry);
-		if (!mounted)
-			break;
+        struct vfsmount *mounted = lookup_mnt(*mnt, *dentry);
+        if (!mounted)
+            break;
 
         // 找到挂载点，更换dentry和mnt的信息
         *mnt = mounted;
         dput(*dentry);
         *dentry = dget(mounted->mnt_root);
-		res = 1;
+        res = 1;
 
 #ifdef DEBUG_VFS
         kernel_printf("-----now get new follow_mount(%s, %s)\n",
                       (*mnt)->mnt_root->d_name.name, (*dentry)->d_name.name);
 #endif
     }
-    
+
     return res;
 }

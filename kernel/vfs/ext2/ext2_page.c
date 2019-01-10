@@ -64,8 +64,10 @@ u32 ext2_bmap(struct inode * inode, u32 page_no) {
     u32 *page = inode->i_data.a_page;
 
     // 直接映射
-    if (page_no < EXT2_FIRST_MAP_INDEX)
+    if (page_no < EXT2_FIRST_MAP_INDEX) {
         retval = page[page_no];
+        goto out;
+    }
 
     entry_num = inode->i_blksize >> EXT2_BLOCK_ADDR_SHIFT;
     sect_cnt  = inode->i_blksize >> SECTOR_SHIFT;
@@ -107,5 +109,6 @@ u32 ext2_bmap(struct inode * inode, u32 page_no) {
 
     ok:
     kfree(data);
+    out:
     return retval;
 }

@@ -18,36 +18,48 @@ static struct file_system_type ** find_filesystem(const u8 *name) {
     for (p = &file_systems; *p; p = &(*p)->next)
         if (kernel_strcmp((*p)->name, name) == 0)
             break;
-    
+
     return p;
 }
 
 // 注册文件系统函数。将其链接在全局`file_systems`的链表中
-u32 register_filesystem(struct file_system_type * fs) {
-    u32 res = 0;
+struct file_system_type * register_filesystem(struct file_system_type * fs) {
+    struct file_system_type * res;
     struct file_system_type ** p;
+    u32 err;
 
-    if (!fs)
-        return -EINVAL;
-    if (fs->next)
-        return -EBUSY;
+    if (!fs) {
+        err = -EINVAL;
+        goto fail;
+    }
+    if (fs->next) {
+        err = -EBUSY;
+        goto fail;
+    }
 
     INIT_LIST_HEAD(&fs->fs_supers);
-    // TODO: lock, 
+    // TODO: lock,
     // lockup(&file_systems_lock);
 
     // 找到`file_systems`中第一个空指针位置
     p = find_filesystem(fs->name);
 
     // 如果已经注册，则返回错误代码；否则存入
-    if (*p)
-        res = -EBUSY;
-    else
+    if (*p) {
+        kernel_printf("    [WARN]: File system has already registered\n");
+    }
+    else {
+        kernel_printf("    [ OK ]: Successfully registered\n");
         *p = fs;
-    
+    }
+    res = *p;
     // TODO: unlock
     // unlock(&file_systems_lock);
     return res;
+
+    fail:
+    kernel_printf_vfs_errno(err);
+    return fs;
 }
 
 u32 unregister_filesystem(struct file_system_type * fs) {
@@ -64,7 +76,7 @@ u32 unregister_filesystem(struct file_system_type * fs) {
             return 0;
         }
     }
-    
+
     // TODO: unlock
     // unlock(&file_systems_lock);
     return -EINVAL;

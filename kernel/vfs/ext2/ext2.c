@@ -55,7 +55,7 @@ struct address_space_operations ext2_address_space_operations = {
 //}
 
 // 初始化基地址为base（绝对扇区地址）上的EXT2文件系统
-u32 init_ext2(u32 base){
+u32 init_ext2(u32 base, u8 * DEV_NAME) {
     u32 i;
     u32 err;
     u32 p_location;
@@ -73,7 +73,7 @@ u32 init_ext2(u32 base){
         return -ENOMEM;
     ext2_BI->ex_base          = base;
     ext2_BI->ex_first_sb_sect = base + EXT2_BOOT_BLOCK_SECT;
-    
+
     // 构建 ext2_super 结构
     // ext2_BI->sb.data = (u8 *) kmalloc ( sizeof(u8) * EXT2_SUPER_BLOCK_SECT * SECTOR_SIZE );
     ext2_BI->sb.data = (u8 *)kmalloc(sizeof(struct ext2_super_block));
@@ -93,10 +93,27 @@ u32 init_ext2(u32 base){
     ext2_BI->ex_blksize = EXT2_BASE_BLOCK_SIZE << ext2_BI->sb.attr->s_log_block_size;
 
     // 找到块描述符表的首地址（绝对扇区地址）
+    // 此处非常神奇，当块大于1K的时候（例如2K时），超级块会被和BOOT区一起放入第一块
     if (ext2_BI->sb.attr->s_log_block_size == 0)
         ext2_BI->ex_first_gdt_sect = base + EXT2_BOOT_BLOCK_SECT + 2;
     else
         ext2_BI->ex_first_gdt_sect = base + (ext2_BI->ex_blksize >> SECTOR_SHIFT);
+
+#ifdef DEBUG_EXT2
+    struct ext2_group_desc* gdt = ext2_get_group_desc(ext2_BI, 1, 1);
+    kernel_printf(" sizeof ext2_group_desc: %lu\n", sizeof(struct ext2_group_desc));
+    kernel_printf(" bg_free_blocks_count: %d\n", gdt->bg_free_blocks_count);
+    kernel_printf(" bg_free_inodes_count: %d\n", gdt->bg_free_inodes_count);
+    kernel_printf(" bg_used_dirs_count: %d\n", gdt->bg_used_dirs_count);
+#endif
+
+    struct ext2_super_block * ext2_raw_sb = ext2_BI->sb.attr;
+
+    ext2_BI->s_groups_count = (ext2_raw_sb->s_blocks_count -
+                               ext2_raw_sb->s_first_data_block +
+                               ext2_raw_sb->s_blocks_per_group - 1) / ext2_raw_sb->s_blocks_per_group;
+
+    ext2_BI->s_desc_per_block = ext2_BI->ex_blksize / sizeof(struct ext2_group_desc);
 
     // 构建 file_system_type 结构
     ext2_fs_type = (struct file_system_type *)kmalloc(sizeof(struct file_system_type));
@@ -105,7 +122,7 @@ u32 init_ext2(u32 base){
     ext2_fs_type->name = "ext2";
     ext2_fs_type->next = NULL;
     // INIT_LIST_HEAD(&(ext2_fs_type->fs_supers));
-    register_filesystem(ext2_fs_type);
+    ext2_fs_type = register_filesystem(ext2_fs_type);
 
     // 构建 super_block 结构
     ext2_sb = (struct super_block *)kmalloc(sizeof(struct super_block));
@@ -117,7 +134,12 @@ u32 init_ext2(u32 base){
     ext2_sb->s_root    = 0;
     ext2_sb->s_fs_info = (void*)ext2_BI;
     ext2_sb->s_op      = &ext2_super_operations;
-    ext2_sb->s_name    = "/dev/sd2";
+
+    ext2_sb->s_name = (u8 *)kmalloc(sizeof(u8) * 10);
+    for (i = 0; i < 9; i++)
+        ext2_sb->s_name[i] = DEV_NAME[i];
+    ext2_sb->s_name[9] = 0;
+
     INIT_LIST_HEAD(&(ext2_sb->s_instances));
     list_add(&ext2_sb->s_instances, &ext2_fs_type->fs_supers);
 
@@ -188,7 +210,6 @@ u32 init_ext2(u32 base){
     ext2_root_inode->i_data.a_pagesize  = ext2_sb->s_blksize;
     ext2_root_inode->i_data.a_op        = &(ext2_address_space_operations);
     INIT_LIST_HEAD(&(ext2_root_inode->i_data.a_cache));
-
     // 完成剩余的填充
     err = ext2_fill_inode(ext2_root_inode);
     if (err)
@@ -242,7 +263,7 @@ u32 init_ext2(u32 base){
     INIT_LIST_HEAD(&(ext2_root_mnt->mnt_mounts));
     INIT_LIST_HEAD(&(ext2_root_mnt->mnt_child));
 
-#ifdef DEBUG_EXT2
+#ifdef DEBUG_MNT
     pwd_mnt = root_mnt = ext2_root_mnt;
     tempp = curPage;
 #else
@@ -288,7 +309,7 @@ u32 ext2_delete_inode(struct dentry *dentry){
     struct condition                cond;
     struct address_space            *mapping;
     struct vfs_page                 *curPage;
-    struct ext2_dir_entry           *ex_dir_entry;
+    struct ext2_dir_entry_2           *ex_dir_entry;
     struct ext2_base_information    *ext2_BI;
 
     inode = dentry->d_inode;
@@ -418,7 +439,7 @@ u32 ext2_delete_inode(struct dentry *dentry){
         start = data;
         end = data + inode->i_blksize;
         while ( *data != 0 && data != end) {
-            ex_dir_entry = (struct ext2_dir_entry *)data;
+            ex_dir_entry = (struct ext2_dir_entry_2 *)data;
 
             if (found){                                     // 确定需要前移的目录项组的始末位置
                 if (flag == 0) {          
@@ -523,7 +544,7 @@ struct dentry * ext2_inode_lookup(struct inode * dir, struct dentry * dentry, st
     struct vfs_page                         * curPage;
     struct address_space                    * mapping;
     struct inode                            * new_inode;
-    struct ext2_dir_entry                   * ex_dir_entry;
+    struct ext2_dir_entry_2                   * ex_dir_entry;
 
     found = 0;
     new_inode = 0;
@@ -568,7 +589,7 @@ struct dentry * ext2_inode_lookup(struct inode * dir, struct dentry * dentry, st
         data = curPage->p_data;
         end = data + dir->i_blksize;
         while ( *data != 0 && data != end ) {
-            ex_dir_entry = (struct ext2_dir_entry *)data;
+            ex_dir_entry = (struct ext2_dir_entry_2 *)data;
             qstr.len = ex_dir_entry->name_len;
             qstr.name = ex_dir_entry->name;
 
@@ -648,7 +669,7 @@ u32 ext2_readdir(struct file * file, struct getdent * getdent){
     struct condition                cond;
     struct vfs_page                 *curPage;
     struct address_space            *mapping;
-    struct ext2_dir_entry           *ex_dir_entry;
+    struct ext2_dir_entry_2           *ex_dir_entry;
 
     dir = file->f_dentry->d_inode;
     mapping = &(dir->i_data);
@@ -697,7 +718,7 @@ u32 ext2_readdir(struct file * file, struct getdent * getdent){
         data = curPage->p_data;
         end = data + dir->i_blksize;
         while ( *data != 0 && data != end ) {
-            ex_dir_entry = (struct ext2_dir_entry *)data;
+            ex_dir_entry = (struct ext2_dir_entry_2 *)data;
             new_inode = (struct inode*) kmalloc ( sizeof(struct inode) );
             new_inode->i_ino            = ex_dir_entry->ino;
             new_inode->i_blksize        = dir->i_blksize;
@@ -732,19 +753,19 @@ u32 ext2_readdir(struct file * file, struct getdent * getdent){
 
     return 0;
 }
-
-// 找到inode所在组的基地址
-u32 ext2_group_base_sect(struct inode * inode) {
-    struct ext2_base_information * ext2_BI;
-
-    ext2_BI =(struct ext2_base_information *)inode->i_sb->s_fs_info;
-
-    struct ext2_group_desc * gdt = ext2_get_group_gdt(ext2_BI, inode->i_ino);
-    if (gdt == 0)
-        return 0;
-
-    u32 group_block_base = gdt->bg_block_bitmap;
-    u32 group_sect_base  = ext2_BI->ex_base + group_block_base * (inode->i_blksize >> SECTOR_SHIFT);
-
-    return group_sect_base;
-}
+//
+//// 找到inode所在组的基地址
+//u32 ext2_group_base_sect(struct inode * inode) {
+//    struct ext2_base_information * ext2_BI;
+//
+//    ext2_BI =(struct ext2_base_information *)inode->i_sb->s_fs_info;
+//
+//    struct ext2_group_desc * gdt = ext2_get_group_gdt(ext2_BI, inode->i_ino);
+//    if (gdt == 0)
+//        return 0;
+//
+//    u32 group_block_base = gdt->bg_block_bitmap;
+//    u32 group_sect_base  = ext2_BI->ex_base + group_block_base * (inode->i_blksize >> SECTOR_SHIFT);
+//
+//    return group_sect_base;
+//}
