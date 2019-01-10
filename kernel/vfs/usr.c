@@ -22,16 +22,16 @@ u32 vfs_cat(const u8 *path){
     struct file *file;
     
     // 调用VFS提供的打开接口
-    file = vfs_open(path, O_RDONLY, base);
-    if (IS_ERR_OR_NULL(file)){
-        if ( PTR_ERR(file) == -ENOENT )
-            kernel_printf("File not found!\n");
+    file = vfs_open(path, O_RDONLY, 0);
+    if (IS_ERR_OR_NULL(file)) {
+        kernel_printf_vfs_errno(PTR_ERR(file));
         return PTR_ERR(file);
     }
     
     // 接下来读取文件数据区的内容到buf
     base = 0;
     file_size = file->f_dentry->d_inode->i_size;
+    kernel_printf("file_size: %d\n", file_size);
     
     buf = (u8*) kmalloc (file_size + 1);
     if (vfs_read(file, buf, file_size, &base) != file_size)
@@ -142,4 +142,192 @@ u32 vfs_rm(const u8 *path){
 
 u32 vfs_mount() {
 
+}
+
+u32 vfs_mkdir(struct inode *dir, struct dentry *dentry, int mode) {
+
+    if (!dir->i_op || !dir->i_op->mkdir)
+        return -EPERM;
+
+#ifdef DEBUG_VFS
+    kernel_printf("now in vfs_mkdir()\n");
+    kernel_printf("     dentry: %s\n", dentry->d_name.name);
+#endif
+
+    mode &= S_ISVTX;
+    u32 err = dir->i_op->mkdir(dir, dentry, mode);
+
+    return err;
+}
+
+struct dentry * lookup_hash(struct qstr *name, struct dentry * base) {
+    return __lookup_hash(name, base, NULL);
+}
+
+struct dentry * lookup_create(struct nameidata *nd, int is_dir) {
+    struct dentry *dentry;
+
+    // 检查nd参数是否正确
+    dentry = ERR_PTR(-EEXIST);
+    if (nd->last_type != LAST_NORM)
+        goto fail;
+
+    // 去掉nd的flag，尝试找一下dentry；如果找不到，lookup_hash函数会创建一个新的dentry
+    nd->flags &= ~LOOKUP_PARENT;
+    dentry = lookup_hash(&nd->last, nd->dentry);
+
+#ifdef DEBUG_VFS
+    kernel_printf("now in lookup_create(%s, %s) %d\n", nd->last.name, nd->dentry->d_name.name, dentry);
+#endif
+
+    if (IS_ERR(dentry))
+        goto fail;
+
+    // 目录或文件不存在的情况
+    if (!is_dir && nd->last.name[nd->last.len] && !dentry->d_inode)
+        goto enoent;
+
+#ifdef DEBUG_VFS
+    kernel_printf("now in lookup_create(%s, %s)\n", nd->last.name, nd->dentry->d_name.name);
+#endif
+
+    return dentry;
+
+enoent:
+    dput(dentry);
+    dentry = ERR_PTR(-ENOENT);
+fail:
+    return dentry;
+}
+
+u32 sys_mkdir(const u8* path, u32 mode) {
+    u32 err;
+
+    struct dentry *dentry;
+    struct nameidata nd;
+
+    err = path_lookup(path, LOOKUP_PARENT, &nd);
+    if (err) {
+        kernel_printf_vfs_errno(err);
+        return 0;
+    }
+
+#ifdef DEBUG_VFS
+    kernel_printf("now in sys_mkdir()\n");
+    kernel_printf("     nd_last: %s\n", nd.last.name);
+    kernel_printf("     nd_dentry: %s\n", nd.dentry->d_name.name);
+#endif
+
+    dentry = lookup_create(&nd, 1);
+    if (!IS_ERR(dentry)) {
+        err = vfs_mkdir(nd.dentry->d_inode, dentry, mode);
+        if (err)
+            kernel_printf_vfs_errno(err);
+        dput(dentry);
+    }
+    else {
+        kernel_printf_vfs_errno(PTR_ERR(dentry));
+    }
+
+    path_release(&nd);
+    return 0;
+}
+
+u32 may_delete(struct inode *dir, struct dentry * victim, int isdir) {
+    u32 error;
+
+    if (!victim->d_inode)
+        return -ENOENT;
+
+//    BUG_ON(victim->d_parent->d_inode != dir);
+//
+//    error = permission(dir,MAY_WRITE | MAY_EXEC, NULL);
+//    if (error)
+//        return error;
+//    if (IS_APPEND(dir))
+//        return -EPERM;
+//    if (check_sticky(dir, victim->d_inode)||IS_APPEND(victim->d_inode)||
+//        IS_IMMUTABLE(victim->d_inode))
+//        return -EPERM;
+//    if (isdir) {
+//        if (!S_ISDIR(victim->d_inode->i_mode))
+//            return -ENOTDIR;
+//        if (IS_ROOT(victim))
+//            return -EBUSY;
+//    } else if (S_ISDIR(victim->d_inode->i_mode))
+//        return -EISDIR;
+//    if (IS_DEADDIR(dir))
+//        return -ENOENT;
+//    if (victim->d_flags & DCACHE_NFSFS_RENAMED)
+//        return -EBUSY;
+    return 0;
+}
+
+u32 vfs_rmdir(struct inode *dir, struct dentry *dentry) {
+    u32 err;
+
+    err = may_delete(dir, dentry, 1);
+    if (err)
+        return err;
+
+    if (!dir->i_op || !dir->i_op->rmdir)
+        return -EPERM;
+
+//    dentry_unhash(dentry);
+//    if (d_mountpoint(dentry))
+//        error = -EBUSY;
+//    else {
+//        error = dir->i_op->rmdir(dir, dentry);
+//        if (!error)
+//            dentry->d_inode->i_flags |= S_DEAD;
+//    }
+//
+//    if (!error) {
+//        inode_dir_notify(dir, DN_DELETE);
+//        d_delete(dentry);
+//    }
+//    dput(dentry);
+
+    return err;
+}
+
+u32 sys_rmdir(const u8 * pathname) {
+    u32 error = 0;
+    const u8 * name;
+    struct dentry *dentry;
+    struct nameidata nd;
+
+    name = pathname;
+    if(IS_ERR(name))
+        return PTR_ERR(name);
+
+    error = path_lookup(name, LOOKUP_PARENT, &nd);
+    if (error)
+        goto exit;
+
+    switch(nd.last_type) {
+    case LAST_DOTDOT:
+        error = -EINVAL;
+        goto exit1;
+    case LAST_DOT:
+        error = -EINVAL;
+        goto exit1;
+    case LAST_ROOT:
+        error = -EBUSY;
+        goto exit1;
+    default:
+        break;
+    }
+
+    dentry = lookup_hash(&nd.last, nd.dentry);
+    error = PTR_ERR(dentry);
+    if (!IS_ERR(dentry)) {
+        error = vfs_rmdir(nd.dentry->d_inode, dentry);
+        dput(dentry);
+    }
+
+exit1:
+    path_release(&nd);
+exit:
+    return error;
 }

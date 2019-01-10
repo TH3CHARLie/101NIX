@@ -18,6 +18,10 @@ static void detach_mnt(struct vfsmount *mnt, struct nameidata *old_nd) {
     mnt->mnt_mountpoint = mnt->mnt_root;
     list_del_init(&mnt->mnt_child);
     list_del_init(&mnt->mnt_hash);
+
+#ifdef DEBUG_VFS
+    kernel_printf("    [detach]: %s %s\n", old_nd->dentry->d_name.name, mnt->mnt_root->d_name.name);
+#endif
 }
 
 // 将mnt连接到nd这个位置上
@@ -27,6 +31,10 @@ static void attach_mnt(struct vfsmount *mnt, struct nameidata *nd) {
     list_add(&mnt->mnt_hash, &nd->mnt->mnt_hash);
     list_add_tail(&mnt->mnt_child, &nd->mnt->mnt_mounts);
     nd->dentry->d_mounted++;
+
+#ifdef DEBUG_VFS
+    kernel_printf("    [attach]: %s %s\n", nd->dentry->d_name.name, mnt->mnt_root->d_name.name);
+#endif
 }
 
 // 第一个参数是要挂载的设备名称，第二个参数是当前的全局路径名，
@@ -44,7 +52,7 @@ u32 do_mount(const u8 *dev_name, const u8 *dir_name,
     err = path_lookup(dir_name, LOOKUP_FOLLOW, &nd);
     if (err) {
 #ifdef DEBUG_VFS
-        kernel_printf("[error]: cannot find dir %s\n", dir_name);
+        kernel_printf("[VFS ERROR]: cannot find dir %s\n", dir_name);
 #endif
         return err;
     }
@@ -94,12 +102,12 @@ u32 do_move_mount(struct nameidata *nd, const u8 *old_name) {
     err = -EINVAL;
     // 必须得是某个文件系统的根才能被移动
     if (old_nd.dentry != old_nd.mnt->mnt_root) {
-        kernel_printf("[error]: must move a root!\n");
+        kernel_printf("[VFS ERROR]: must move a root!\n");
         goto out;
     }
     // 全局root文件系统不能被移动
     if (old_nd.mnt == old_nd.mnt->mnt_parent) {
-        kernel_printf("[error]: cannot move the global root!\n");
+        kernel_printf("[VFS ERROR]: cannot move the global root!\n");
         goto out;
     }
 
