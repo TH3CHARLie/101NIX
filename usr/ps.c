@@ -10,8 +10,8 @@
 #include <zjunix/slab.h>
 #include <zjunix/time.h>
 #include <zjunix/utils.h>
-#include <zjunix/vm.h>
 #include <zjunix/vfs/vfs.h>
+#include <zjunix/vm.h>
 #include "../usr/ls.h"
 #include "exec.h"
 #include "myvi.h"
@@ -46,11 +46,11 @@ void empty_test() {
 }
 
 void create_test_prog() {
-  task_create("1111", empty_test, 0, 0, 5, 1);
-  //   task_create("2222", empty_test, 0, 0, 0, 1);
-  //   task_create("3333", empty_test, 0, 0, 20, 1);
-  //   task_create("4444", empty_test, 0, 0, -5, 1);
-  //   task_create("5555", empty_test, 0, 0, 10, 1);
+  task_create("1111", empty_test, 0, 0, 0, 1);
+  task_create("2222", empty_test, 0, 0, 0, 1);
+  task_create("3333", empty_test, 0, 0, 0, 1);
+  task_create("4444", empty_test, 0, 0, 0, 1);
+  task_create("5555", empty_test, 0, 0, 0, 1);
 }
 
 void get_a_str(char *a, char **p) {

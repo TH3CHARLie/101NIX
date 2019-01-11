@@ -7,6 +7,7 @@
 #define _PAGE_RESERVED (1 << 31)
 #define _PAGE_ALLOCED (1 << 30)
 #define _PAGE_SLAB (1 << 29)
+#define _PAGE_FREE (1 << 28)
 
 /*
  * struct buddy page is one info-set for the buddy group of pages
@@ -16,15 +17,16 @@ struct page {
     unsigned int reference;  //
     struct list_head list;   // double-way list
     void *virtual;           // default 0x(-1)
-    unsigned int bplevel;    /* the order level of the page
-                              *
-                              * unsigned int sl_objs;
-                              * 		represents the number of objects in current
-                              * if the page is of _PAGE_SLAB, then bplevel is the sl_objs
-                              */
-    unsigned int slabp;      /* if the page is used by slab system,
-                              * then slabp represents the base-addr of free space
-                              */
+    unsigned int
+        bplevel;        /* the order level of the page
+                         *
+                         * unsigned int sl_objs;
+                         * 		represents the number of objects in current
+                         * if the page is of _PAGE_SLAB, then bplevel is the sl_objs
+                         */
+    unsigned int slabp; /* if the page is used by slab system,
+                         * then slabp represents the base-addr of free space
+                         */
 };
 
 #define PAGE_SHIFT 12
@@ -51,9 +53,7 @@ struct buddy_sys {
 #define _is_same_bpgroup(page, bage) (((*(page)).bplevel == (*(bage)).bplevel))
 #define _is_same_bplevel(page, lval) ((*(page)).bplevel == (lval))
 #define set_bplevel(page, lval) ((*(page)).bplevel = (lval))
-#define set_flag(page, val) ((*(page)).flag |= (val))
-#define clean_flag(page, val) ((*(page)).flag &= ~(val))
-#define has_flag(page, val) ((*(page)).flag & val)
+#define set_flag(page, val) ((*(page)).flag = (val))
 #define set_ref(page, val) ((*(page)).reference = (val))
 #define inc_ref(page, val) ((*(page)).reference += (val))
 #define dec_ref(page, val) ((*(page)).reference -= (val))
