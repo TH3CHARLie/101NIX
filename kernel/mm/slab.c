@@ -145,7 +145,7 @@ void slab_free(struct kmem_cache *cache, void *object) {
     unsigned int *ptr;
     struct slab_head *s_head = (struct slab_head *)KMEM_ADDR(opage, pages);
 
-    if ((s_head->nr_objs)) {
+    if (!(s_head->nr_objs)) {
         return;
     }
 
@@ -187,13 +187,12 @@ void *kmalloc(unsigned int size) {
     unsigned int bf_index;
 
     if (!size) return 0;
-    // if the size larger than the max size of slab system, then call buddy to
-    // solve this
+    size += (1 << PAGE_SHIFT) - 1;
+    size &= ~((1 << PAGE_SHIFT) - 1);
+
     if (size > kmalloc_caches[PAGE_SHIFT - 1].objsize) {
         unsigned int bplevel = 0;
         unsigned int curr_size = 1 << PAGE_SHIFT;
-        size += (1 << PAGE_SHIFT) - 1;
-        size &= ~((1 << PAGE_SHIFT) - 1);
         while (size > curr_size) {
             curr_size <<= 1;
             bplevel++;

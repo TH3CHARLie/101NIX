@@ -91,7 +91,7 @@ void init_task_module() {
   if (assign_pid_res == 1) {
     kernel_printf("[init_task_module]: fatal, init pid assign fail\n");
   }
-  
+
   kernel_printf("[init_task_module]:three\n");
   p->pid = p->real_pid.numbers[0].nr;
   p->parent = NULL;
@@ -187,12 +187,14 @@ finish:
   }
 }
 
-void task_create(char *task_name, void (*entry)(unsigned int argc, void *args),
-                 unsigned int argc, void *args, int nice, int user_mode) {
+struct task_struct *task_create(char *task_name,
+                                void (*entry)(unsigned int argc, void *args),
+                                unsigned int argc, void *args, int nice,
+                                int user_mode) {
   union task_union *tmp = (union task_union *)kmalloc(sizeof(union task_union));
   if (tmp == 0) {
     kernel_printf("allocate fail, return\n");
-    return;
+    return NULL;
   }
   struct task_struct *new_task = &(tmp->task);
   kernel_strcpy(new_task->name, task_name);
@@ -202,6 +204,7 @@ void task_create(char *task_name, void (*entry)(unsigned int argc, void *args),
   int assign_pid_res = assign_real_pid_from_ns(new_task, curr_pid_namespace);
   if (assign_pid_res == -1) {
     kernel_printf("[init_task_module]: fatal, init pid assign fail\n");
+    return NULL;
   }
   new_task->pid = new_task->real_pid.numbers[0].nr;
   new_task->parent = NULL;
@@ -446,7 +449,7 @@ int task_exec_from_file(char *filename) {
   unsigned int n = size / CACHE_BLOCK_SIZE + 1;
   unsigned int i = 0;
   unsigned int j = 0;
-  void *user_proc_entry = (void *)kmalloc(size + 1);
+  void *user_proc_entry = (void *)kmalloc(size);
   u32 base = 0;
 
   kernel_printf("[exec]: pass malloc\n");
@@ -455,6 +458,13 @@ int task_exec_from_file(char *filename) {
     if (old_ie) {
       enable_interrupts();
     }
+  }
+
+  kernel_printf("[exec]: pass read\n");
+  task_struct *pcb = task_create(filename, (void *)0, 0, 0, 0, 1);
+  vma_set_mapping(pcb, 0, user_proc_entry);
+  if (old_ie) {
+    enable_interrupts();
   }
 
   kernel_printf("[exec]: pass read\n");

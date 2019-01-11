@@ -28,5 +28,5 @@ void page_share_proc_1();
 void page_share_proc_2();
 void buffer_proc();
 void* vma_va_to_pa(task_struct* pcb, void* virtual_addr);
-
+void vma_set_mapping(task_struct* pcb, void* virtual_addr, void* physical_addr);
 #endif

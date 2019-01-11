@@ -98,8 +98,10 @@ typedef union task_union {
 
 void init_task_module();
 
-void task_create(char *task_name, void (*entry)(unsigned int argc, void *args),
-                 unsigned int argc, void *args, int nice, int user_mode);
+struct task_struct *task_create(char *task_name,
+                         void (*entry)(unsigned int argc, void *args),
+                         unsigned int argc, void *args, int nice,
+                         int user_mode);
 
 void task_tick(unsigned int status, unsigned int cause, context *pt_context);
 
