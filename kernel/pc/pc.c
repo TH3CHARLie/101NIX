@@ -240,6 +240,7 @@ struct task_struct *task_create(char *task_name,
   update_min_vruntime(&cfs_rq);
   kernel_printf("task create %s %d vm=%x\n", new_task->name, new_task->pid,
                 new_task->vm);
+  return new_task;
 }
 
 void task_kill(pid_t pid) {
@@ -435,10 +436,9 @@ void test_empty() {}
 int task_exec_from_file(char *filename) {
   unsigned int old_ie = disable_interrupts();
   struct file *file;
-  kernel_printf("[exec]: enter here\n");
   file = vfs_open(filename, O_RDONLY, 0);
   if (IS_ERR_OR_NULL(file)) {
-    kernel_printf("File %s not exist\n", filename);
+    kernel_printf("[exec]: File %s not exist\n", filename);
     if (old_ie) {
       enable_interrupts();
     }
@@ -452,23 +452,15 @@ int task_exec_from_file(char *filename) {
   void *user_proc_entry = (void *)kmalloc(size);
   u32 base = 0;
 
-  kernel_printf("[exec]: pass malloc\n");
   if (vfs_read(file, (char *)user_proc_entry, size, &base) != size) {
-    kernel_printf("File %s read failed\n", filename);
+    kernel_printf("[exec]:File %s read failed\n", filename);
     if (old_ie) {
       enable_interrupts();
     }
+    return 1;
   }
-
-  kernel_printf("[exec]: pass read\n");
   task_struct *pcb = task_create(filename, (void *)0, 0, 0, 0, 1);
   vma_set_mapping(pcb, 0, user_proc_entry);
-  if (old_ie) {
-    enable_interrupts();
-  }
-
-  kernel_printf("[exec]: pass read\n");
-  task_create(filename, (void *)user_proc_entry, 0, 0, 0, 1);
   if (old_ie) {
     enable_interrupts();
   }
