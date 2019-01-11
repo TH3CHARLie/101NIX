@@ -77,6 +77,7 @@ void ptd_delete(task_struct* pcb, void* ptd) {
         void* pt = (void*)(((int*)ptd)[i]);
         if (pt != NULL) {
             pt_delete(pcb, pt);
+            ((int*)ptd)[i] = NULL;
         }
     }
     kfree(ptd);
@@ -96,6 +97,7 @@ void pt_delete(task_struct* pcb, void* pt) {
             if (shared_page_delete(pcb, pte) != 0) {
                 kfree(pte);
             }
+            ((int*)pt)[i] = NULL;
         }
     }
     kfree(pt);
@@ -123,10 +125,11 @@ void tlb_refill(unsigned int status, unsigned int cause, context* pt_context) {
     ptd = pcb->vm;
     if (ptd == NULL) {
         kernel_printf(
-            "[tlb_refill]: Error. Process %s exited due to accessing addr=%x,"
+            "[tlb_refill]: Error. Process %s exited due to accessing addr=%x, "
+            "*addr=%x "
             "epc=%x\n",
             pcb->name, (unsigned int)virtual_addr,
-            (unsigned int)pcb->context.epc);
+            *((unsigned int*)virtual_addr), (unsigned int)pcb->context.epc);
         while (1)
             ;
     }
@@ -140,11 +143,12 @@ void tlb_refill(unsigned int status, unsigned int cause, context* pt_context) {
     pte = (void*)((unsigned int*)pt)[pt_index];
     if (pte == NULL) {
         if ((unsigned int)virtual_addr >= 0x10000) {
-        kernel_printf(
-            "[tlb_refill]: Error. Process %s exited due to accessing addr=%x, "
-            "epc=%x\n",
-            pcb->name, (unsigned int)virtual_addr,
-            (unsigned int)pcb->context.epc);
+            kernel_printf(
+                "[tlb_refill]: Error. Process %s exited due to accessing "
+                "addr=%x, *addr=%x "
+                "epc=%x\n",
+                pcb->name, (unsigned int)virtual_addr,
+                *((unsigned int*)virtual_addr), (unsigned int)pcb->context.epc);
             while (1)
                 ;
         }
@@ -374,7 +378,6 @@ void memory_pool_delete(task_struct* pcb) {
             //     memory_block->base_virtual_addr,
             //     memory_block->base_physical_addr);
             vma_set_mapping(pcb, memory_block->base_virtual_addr, NULL);
-            kfree(memory_block->base_physical_addr);
             next_memory_block = memory_block->next_memory_block;
             kfree(memory_block);
             memory_block = next_memory_block;

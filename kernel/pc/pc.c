@@ -1,19 +1,20 @@
 #include <driver/vga.h>
 #include <intr.h>
 #include <zjunix/fs/fat.h>
-#include <zjunix/vfs/vfs.h>
 #include <zjunix/pid.h>
 #include <zjunix/slab.h>
 #include <zjunix/syscall.h>
 #include <zjunix/time.h>
 #include <zjunix/utils.h>
+#include <zjunix/vfs/vfs.h>
 #include <zjunix/vm.h>
 struct task_struct *init;
 struct task_struct *current_task;
+struct pid_namespace *root_pid_namespace;
+struct pid_namespace *curr_pid_namespace;
 struct list_head task_all;
 struct list_head task_waiting;
 struct list_head task_ready;
-struct list_head task_dead;
 struct cfs_rq cfs_rq;
 int atomic_pid = 0;
 static const unsigned int CACHE_BLOCK_SIZE = 64;
@@ -69,11 +70,13 @@ static void delete_task(struct task_struct *p) {
 }
 
 void init_task_module() {
+  init_pid_module();
+  root_pid_namespace = pid_namespace_create(NULL);
+  curr_pid_namespace = root_pid_namespace;
   INIT_CFS_RQ(&cfs_rq);
   INIT_LIST_HEAD(&task_all);
   INIT_LIST_HEAD(&task_waiting);
   INIT_LIST_HEAD(&task_ready);
-  INIT_LIST_HEAD(&task_dead);
 
   // // setting init process
   union task_union *tmp = (union task_union *)(kernel_sp - TASK_KERNEL_SIZE);
@@ -83,10 +86,15 @@ void init_task_module() {
   kernel_memset(&p->context, 0, sizeof(context));
   p->nice = 0;
   p->prio = 20;
-  p->pid = atomic_pid++;
-  p->tgid = init->pid;
+  kernel_printf("[init_task_module]:heare\n");
+  int assign_pid_res = assign_real_pid_from_ns(p, root_pid_namespace);
+  if (assign_pid_res == 1) {
+    kernel_printf("[init_task_module]: fatal, init pid assign fail\n");
+  }
+
+  kernel_printf("[init_task_module]:three\n");
+  p->pid = p->real_pid.numbers[0].nr;
   p->parent = NULL;
-  p->group_leader = NULL;
   // setting init process se
   struct sched_entity *se = &(init->se);
   se->vruntime = 0;
@@ -179,22 +187,27 @@ finish:
   }
 }
 
-void task_create(char *task_name, void (*entry)(unsigned int argc, void *args),
-                 unsigned int argc, void *args, int nice, int user_mode) {
+struct task_struct *task_create(char *task_name,
+                                void (*entry)(unsigned int argc, void *args),
+                                unsigned int argc, void *args, int nice,
+                                int user_mode) {
   union task_union *tmp = (union task_union *)kmalloc(sizeof(union task_union));
   if (tmp == 0) {
     kernel_printf("allocate fail, return\n");
-    return;
+    return NULL;
   }
   struct task_struct *new_task = &(tmp->task);
   kernel_strcpy(new_task->name, task_name);
   new_task->nice = nice;
   new_task->static_prio = new_task->nice + 20;
   new_task->prio = new_task->nice + 20;
-  new_task->pid = atomic_pid++;
-  new_task->tgid = new_task->pid;
+  int assign_pid_res = assign_real_pid_from_ns(new_task, curr_pid_namespace);
+  if (assign_pid_res == -1) {
+    kernel_printf("[init_task_module]: fatal, init pid assign fail\n");
+    return NULL;
+  }
+  new_task->pid = new_task->real_pid.numbers[0].nr;
   new_task->parent = NULL;
-  new_task->group_leader = NULL;
   // setting new_task process se
   struct sched_entity *se = &(new_task->se);
   se->vruntime = current_task->se.vruntime;
@@ -227,6 +240,7 @@ void task_create(char *task_name, void (*entry)(unsigned int argc, void *args),
   update_min_vruntime(&cfs_rq);
   kernel_printf("task create %s %d vm=%x\n", new_task->name, new_task->pid,
                 new_task->vm);
+  return new_task;
 }
 
 void task_kill(pid_t pid) {
@@ -251,6 +265,7 @@ void task_kill(pid_t pid) {
         vm_delete(p);
         memory_pool_delete(p);
       }
+      free_real_pid(p);
       break;
     }
   }
@@ -418,14 +433,12 @@ struct task_struct *get_current_task() {
 
 void test_empty() {}
 
-
 int task_exec_from_file(char *filename) {
   unsigned int old_ie = disable_interrupts();
   struct file *file;
-  kernel_printf("[exec]: enter here\n");
   file = vfs_open(filename, O_RDONLY, 0);
   if (IS_ERR_OR_NULL(file)) {
-    kernel_printf("File %s not exist\n", filename);
+    kernel_printf("[exec]: File %s not exist\n", filename);
     if (old_ie) {
       enable_interrupts();
     }
@@ -436,30 +449,45 @@ int task_exec_from_file(char *filename) {
   unsigned int n = size / CACHE_BLOCK_SIZE + 1;
   unsigned int i = 0;
   unsigned int j = 0;
-  void* user_proc_entry = (void *)kmalloc(size + 1);
+  void *user_proc_entry = (void *)kmalloc(size);
   u32 base = 0;
-  
-  kernel_printf("[exec]: pass malloc\n");
+
   if (vfs_read(file, (char *)user_proc_entry, size, &base) != size) {
-    kernel_printf("File %s read failed\n", filename);
+    kernel_printf("[exec]:File %s read failed\n", filename);
     if (old_ie) {
       enable_interrupts();
     }
+    return 1;
   }
-  
-  kernel_printf("[exec]: pass read\n");
-  task_create(filename, (void *)user_proc_entry, 0, 0, 0, 1);
+  task_struct *pcb = task_create(filename, (void *)0, 0, 0, 0, 1);
+  vma_set_mapping(pcb, 0, user_proc_entry);
   if (old_ie) {
     enable_interrupts();
   }
   return 0;
 }
 
+char *state_to_string(int state) {
+  static char *str[4] = {"RUNNING", "WAIT", "READY", "DEAD"};
+  if (state == TASK_RUNNING) {
+    return str[TASK_RUNNING];
+  } else if (state == TASK_READY) {
+    return str[TASK_READY];
+  } else if (state == TASK_WAITING) {
+    return str[TASK_WAITING];
+  } else {
+    return str[TASK_DEAD];
+  }
+}
+
 int print_proc() {
   struct list_head *pos;
   struct task_struct *p;
+
+  kernel_printf("name pid namespace-level vruntime state\n");
   list_for_each(pos, &task_all) {
     p = container_of(pos, struct task_struct, task_node);
-    kernel_printf("%s %d %d\n", p->name, p->pid, p->state);
+    kernel_printf("%s %d %d %d %s\n", p->name, p->pid, p->real_pid.level,
+                  p->se.vruntime, state_to_string(p->state));
   }
 }
