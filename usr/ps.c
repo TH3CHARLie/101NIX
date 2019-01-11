@@ -54,7 +54,10 @@ void create_test_prog() {
 }
 
 void get_a_str(char *a, char **p) {
-  while (**p == ' ') (*p)++;
+  while (**p == ' ') {
+    **p = 0;
+    (*p)++;
+  }
   int i;
   for (i = 0; **p != 0 && **p != ' '; (*p)++) a[i++] = **p;
   a[i] = '\0';
@@ -192,6 +195,33 @@ void parse_cmd() {
   } else if (kernel_strcmp(ps_buffer, "cd") == 0) {
     unsigned int old_ie = disable_interrupts();
     result = vfs_cd(param);
+    if (old_ie) {
+      enable_interrupts();
+    }
+  } else if (kernel_strcmp(ps_buffer, "mount") == 0) {
+    unsigned int old_ie = disable_interrupts();
+    char a[20], b[20], ccc[20];
+    int mode;
+    get_a_str(a, &param);
+    get_a_str(b, &param);
+    get_a_str(ccc, &param);
+    get_num(&mode, &param);
+    //kernel_printf("%s %s %s %d\n", a, b, c, mode);
+    result = do_mount(a, b, ccc, mode);
+    kernel_puts(ps_buffer, 0xfff, 0);
+    if (old_ie) {
+      enable_interrupts();
+    }
+  } else if (kernel_strcmp(ps_buffer, "umount") == 0) {
+    unsigned int old_ie = disable_interrupts();
+    do_umount(param);
+    kernel_puts(ps_buffer, 0xfff, 0);
+    if (old_ie) {
+      enable_interrupts();
+    }
+  } else if (kernel_strcmp(ps_buffer, "pwd") == 0) {
+    unsigned int old_ie = disable_interrupts();
+    vfs_pwd();
     if (old_ie) {
       enable_interrupts();
     }

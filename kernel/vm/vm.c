@@ -123,9 +123,9 @@ void tlb_refill(unsigned int status, unsigned int cause, context* pt_context) {
     ptd = pcb->vm;
     if (ptd == NULL) {
         kernel_printf(
-            "[tlb_refill]: Error. Process %s exited due to accessing addr=%x, *addr=%x "
+            "[tlb_refill]: Error. Process %s exited due to accessing addr=%x,"
             "epc=%x\n",
-            pcb->name, (unsigned int)virtual_addr, *((unsigned int *)virtual_addr),
+            pcb->name, (unsigned int)virtual_addr,
             (unsigned int)pcb->context.epc);
         while (1)
             ;
@@ -141,9 +141,9 @@ void tlb_refill(unsigned int status, unsigned int cause, context* pt_context) {
     if (pte == NULL) {
         if ((unsigned int)virtual_addr >= 0x10000) {
         kernel_printf(
-            "[tlb_refill]: Error. Process %s exited due to accessing addr=%x, *addr=%x "
+            "[tlb_refill]: Error. Process %s exited due to accessing addr=%x, "
             "epc=%x\n",
-            pcb->name, (unsigned int)virtual_addr, *((unsigned int *)virtual_addr),
+            pcb->name, (unsigned int)virtual_addr,
             (unsigned int)pcb->context.epc);
             while (1)
                 ;

@@ -7,11 +7,17 @@
 // 封装的读写函数
 // 从addr的绝对扇区地址开始读count个扇区的数据
 u32 read_block(u8 *buf, u32 addr, u32 count) {
+#ifdef DEBUG_SD
+    kernel_printf("                                  sd_read_block: %d %d\n", addr, count);
+#endif
     return sd_read_block(buf, addr, count);
 }
 
 // 从addr的绝对扇区地址开始写count个扇区的数据
 u32 write_block(u8 *buf, u32 addr, u32 count) {
+#ifdef DEBUG_SD
+    kernel_printf("                                  sd_write_block: %d %d\n", addr, count);
+#endif
     return sd_write_block(buf, addr, count);
 }
 
@@ -41,6 +47,19 @@ void set_u32(u8 *ch, u32 num) {
     *(ch + 3) = (u8)((num >> 24) & 0xFF);
 }
 
+// 找到word中的第一个0
+u32 log2(u32 word) {
+    u32 b = 0, s;
+
+    s = 16; if (word << 16 != 0) s = 0; b += s; word >>= s;
+    s =  8; if (word << 24 != 0) s = 0; b += s; word >>= s;
+    s =  4; if (word << 28 != 0) s = 0; b += s; word >>= s;
+    s =  2; if (word << 30 != 0) s = 0; b += s; word >>= s;
+    s =  1; if (word << 31 != 0) s = 0; b += s;
+
+    return b;
+}
+
 // 通用的文件名比较方法(相等则返回0)
 u32 generic_compare_filename(const struct qstr *a, const struct qstr *b) {
     u32 i;
@@ -51,7 +70,7 @@ u32 generic_compare_filename(const struct qstr *a, const struct qstr *b) {
         if (a->name[i] != b->name[i])
             return 1;
 
-	return 0;
+    return 0;
 }
 
 // 不区分大小写的文件名比较方法（相等则返回0）
@@ -80,10 +99,10 @@ u32 fat32_compare_filename(const struct qstr *a, const struct qstr *b) {
 u32 get_bit(const u8 *bitmap, u32 index){
     const u8 *byte;
     u8 mask;
-    
+
     byte = bitmap + index / BITS_PER_BYTE;
     mask = 1 << (index % BITS_PER_BYTE);
-    
+
     return (u32)(*byte & mask) != 0;
 }
 
@@ -91,7 +110,7 @@ u32 get_bit(const u8 *bitmap, u32 index){
 void set_bit(u8 *bitmap, u32 index){
     u8 *byte;
     u8 mask;
-    
+
     byte = bitmap + index / BITS_PER_BYTE;
     mask = 1 << (index % BITS_PER_BYTE);
     *byte = mask | (*byte);
@@ -101,9 +120,25 @@ void set_bit(u8 *bitmap, u32 index){
 void reset_bit(u8 *bitmap, u32 index){
     u8 *byte;
     u8 mask;
-    
+
     byte = bitmap + index / BITS_PER_BYTE;
     mask = 1 << (index % BITS_PER_BYTE);
     mask = mask ^ 0xFF;
     *byte = mask & (*byte);
+}
+
+u32 find_first_zero_bit(u8 *bitmap, u32 blksize) {
+    u32 i, j;
+    u32 bitmask;
+
+    for (i = 0; i < blksize; i++) {
+        bitmask = 1;
+        for (j = 0; j < BITS_PER_BYTE; j++) {
+            if (!(bitmask & bitmap[i]))
+                return (i << 3) + j;
+            bitmask <<= 1;
+        }
+    }
+
+    return -EINVAL;
 }

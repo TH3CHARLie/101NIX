@@ -51,7 +51,7 @@ u32 ext2_fill_inode(struct inode *inode) {
     return 0;
 }
 
-struct inode *ext2_new_inode(struct inode *dir, int mode)
+struct inode *ext2_new_inode(struct inode *dir, u32 mode)
 {
 //    u32 i;
 //    u32 group;

@@ -27,6 +27,11 @@ void* dcache_look_up(struct cache *this, struct condition *cond) {
     parent = (struct dentry *) (cond->cond1);
     name   = (struct qstr*)    (cond->cond2);
 
+#ifdef DEBUG_VFS
+    kernel_printf("[dcache]: dcache_look_up(%s, %s) len:(%d, %d)\n", parent->d_name.name, name->name,
+                  parent->d_name.len, name->len);
+#endif
+
     // 计算名字对应的哈希值，找到那个哈希值对应页面的链表头
     hash = __stringHash(name, this->c_tablesize);
     start = &(this->c_hashtable[hash]);
@@ -41,7 +46,7 @@ void* dcache_look_up(struct cache *this, struct condition *cond) {
     return 0;
 
     // 找到，更新链表和哈希表（提至最前），并返回
-found:
+    found:
     list_del(&(tested->d_hash));
     list_add(&(tested->d_hash), &(this->c_hashtable[hash]));
     list_del(&(tested->d_LRU));

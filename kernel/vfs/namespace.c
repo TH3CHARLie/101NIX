@@ -128,7 +128,7 @@ u32 do_move_mount(struct nameidata *nd, const u8 *old_name) {
     //spin_unlock(&vfsmount_lock);
     //out1:
     //up(&nd->dentry->d_inode->i_sem);
-out:
+    out:
     //up_write(&current->namespace->sem);
     if (!err)
         path_release(&parent_nd);
@@ -219,7 +219,7 @@ static u32 graft_tree(struct vfsmount *mnt, struct nameidata *nd) {
     // mntget(mnt);
     err = 0;
 
-   // }
+    // }
 //    spin_unlock(&vfsmount_lock);
 //    out_unlock:
 //    up(&nd->dentry->d_inode->i_sem);
@@ -338,7 +338,7 @@ u32 do_umount(const u8 *dir_name) {
     // 此处可以有权限检查
 //    err = do_umount(nd.mnt);
     umount_tree(nd.mnt);
-out:
+    out:
     path_release(&nd);
     return err;
 }

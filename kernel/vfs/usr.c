@@ -12,14 +12,35 @@ extern struct cache                     * pcache;
 extern struct dentry                    * pwd_dentry;
 extern struct vfsmount                  * pwd_mnt;
 
+u32 path_name_is_valid(u8 ch) {
+    if (ch >= 'a' && ch <= 'z')
+        return 1;
+    if (ch >= 'A' && ch <= 'Z')
+        return 1;
+    if (ch >= '0' && ch <= '9')
+        return 1;
+    if (ch == '/' || ch == '_' || ch == '-' ||
+        ch == '.' || ch == '~')
+        return 1;
+    return 0;
+}
+
 // 以下为Power shell 的接口
 // 输出文件的内容
-u32 vfs_cat(const u8 *path){
+u32 vfs_cat(const u8 *param) {
     u8 *buf;
     u32 err;
     u32 base;
     u32 file_size;
     struct file *file;
+
+    u32 i;
+    u8 path[255];
+    for (i = 0; path_name_is_valid(param[i]); i++)
+        path[i] = param[i];
+    path[i] = '\0';
+
+    kernel_printf("vfs_cat: %s\n", path);
     
     // 调用VFS提供的打开接口
     file = vfs_open(path, O_RDONLY, 0);
@@ -51,9 +72,17 @@ u32 vfs_cat(const u8 *path){
 }
 
 // 更改当前的工作目录
-u32 vfs_cd(const u8 *path) {
+u32 vfs_cd(const u8 *param) {
     u32 err;
     struct nameidata nd;
+
+    u32 i;
+    u8 path[255];
+    for (i = 0; path_name_is_valid(param[i]); i++)
+        path[i] = param[i];
+    path[i] = '\0';
+
+    kernel_printf("vfs_cd: %s\n", path);
 
     // 调用VFS提供的查找接口
     err = path_lookup(path, LOOKUP_DIRECTORY, &nd);
@@ -73,11 +102,18 @@ u32 vfs_cd(const u8 *path) {
 }
 
 // 输出文件夹的内容
-u32 vfs_ls(const u8 *path) {
+u32 vfs_ls(const u8 *param) {
     u32 i;
     u32 err;
     struct file *file;
     struct getdent getdent;
+
+    u8 path[255];
+    for (i = 0; path_name_is_valid(param[i]); i++)
+        path[i] = param[i];
+    path[i] = '\0';
+
+    kernel_printf("vfs_ls: %s\n", path);
 
     // 调用VFS提供的打开接口
     if (path[0] == 0)
@@ -114,11 +150,19 @@ u32 vfs_ls(const u8 *path) {
 }
 
 // 删除一个文件（不能是文件夹）
-u32 vfs_rm(const u8 *path){
+u32 vfs_rm(const u8 *param){
     u32 err;
     struct inode        *inode;
     struct dentry       *dentry;
     struct nameidata    nd;
+
+    u32 i;
+    u8 path[255];
+    for (i = 0; path_name_is_valid(param[i]); i++)
+        path[i] = param[i];
+    path[i] = '\0';
+
+    kernel_printf("vfs_rm: %s\n", path);
 
     // 调用VFS提供的查找接口
     err = path_lookup(path, 0, &nd);
@@ -140,98 +184,161 @@ u32 vfs_rm(const u8 *path){
     return 0;
 }
 
+u32 vfs_pwd() {
+    kernel_printf("%s\n", pwd_dentry->d_name.name);
+}
+
+u32 vfs_do_mount() {
+
+}
+
 u32 vfs_mount() {
 
 }
+//
+//u32 vfs_mkdir(struct inode *dir, struct dentry *dentry, int mode) {
+//
+//    if (!dir->i_op || !dir->i_op->mkdir)
+//        return -EPERM;
+//
+//#ifdef DEBUG_VFS
+//    kernel_printf("now in vfs_mkdir()\n");
+//    kernel_printf("     dentry: %s\n", dentry->d_name.name);
+//#endif
+//
+//    mode &= S_ISVTX;
+//    u32 err = dir->i_op->mkdir(dir, dentry, mode);
+//
+//    return err;
+//}
+//
+//struct dentry * lookup_hash(struct qstr *name, struct dentry * base) {
+//    return __lookup_hash(name, base, NULL);
+//}
+//
+//struct dentry * lookup_create(struct nameidata *nd, int is_dir) {
+//    struct dentry *dentry;
+//
+//    // 检查nd参数是否正确
+//    dentry = ERR_PTR(-EEXIST);
+//    if (nd->last_type != LAST_NORM)
+//        goto fail;
+//
+//    // 去掉nd的flag，尝试找一下dentry；如果找不到，lookup_hash函数会创建一个新的dentry
+//    nd->flags &= ~LOOKUP_PARENT;
+//    dentry = lookup_hash(&nd->last, nd->dentry);
+//
+//#ifdef DEBUG_VFS
+//    kernel_printf("now in lookup_create(%s, %s) %d\n", nd->last.name, nd->dentry->d_name.name, dentry);
+//#endif
+//
+//    if (IS_ERR(dentry))
+//        goto fail;
+//
+//    // 目录或文件不存在的情况
+//    if (!is_dir && nd->last.name[nd->last.len] && !dentry->d_inode)
+//        goto enoent;
+//
+//#ifdef DEBUG_VFS
+//    kernel_printf("now in lookup_create(%s, %s)\n", nd->last.name, nd->dentry->d_name.name);
+//#endif
+//
+//    return dentry;
+//
+//enoent:
+//    dput(dentry);
+//    dentry = ERR_PTR(-ENOENT);
+//fail:
+//    return dentry;
+//}
 
-u32 vfs_mkdir(struct inode *dir, struct dentry *dentry, int mode) {
-
-    if (!dir->i_op || !dir->i_op->mkdir)
-        return -EPERM;
-
-#ifdef DEBUG_VFS
-    kernel_printf("now in vfs_mkdir()\n");
-    kernel_printf("     dentry: %s\n", dentry->d_name.name);
-#endif
-
-    mode &= S_ISVTX;
-    u32 err = dir->i_op->mkdir(dir, dentry, mode);
-
-    return err;
-}
-
-struct dentry * lookup_hash(struct qstr *name, struct dentry * base) {
-    return __lookup_hash(name, base, NULL);
-}
-
-struct dentry * lookup_create(struct nameidata *nd, int is_dir) {
-    struct dentry *dentry;
-
-    // 检查nd参数是否正确
-    dentry = ERR_PTR(-EEXIST);
-    if (nd->last_type != LAST_NORM)
-        goto fail;
-
-    // 去掉nd的flag，尝试找一下dentry；如果找不到，lookup_hash函数会创建一个新的dentry
-    nd->flags &= ~LOOKUP_PARENT;
-    dentry = lookup_hash(&nd->last, nd->dentry);
-
-#ifdef DEBUG_VFS
-    kernel_printf("now in lookup_create(%s, %s) %d\n", nd->last.name, nd->dentry->d_name.name, dentry);
-#endif
-
-    if (IS_ERR(dentry))
-        goto fail;
-
-    // 目录或文件不存在的情况
-    if (!is_dir && nd->last.name[nd->last.len] && !dentry->d_inode)
-        goto enoent;
-
-#ifdef DEBUG_VFS
-    kernel_printf("now in lookup_create(%s, %s)\n", nd->last.name, nd->dentry->d_name.name);
-#endif
-
-    return dentry;
-
-enoent:
-    dput(dentry);
-    dentry = ERR_PTR(-ENOENT);
-fail:
-    return dentry;
-}
-
-u32 sys_mkdir(const u8* path, u32 mode) {
-    u32 err;
-
-    struct dentry *dentry;
-    struct nameidata nd;
-
-    err = path_lookup(path, LOOKUP_PARENT, &nd);
-    if (err) {
-        kernel_printf_vfs_errno(err);
-        return 0;
-    }
-
-#ifdef DEBUG_VFS
-    kernel_printf("now in sys_mkdir()\n");
-    kernel_printf("     nd_last: %s\n", nd.last.name);
-    kernel_printf("     nd_dentry: %s\n", nd.dentry->d_name.name);
-#endif
-
-    dentry = lookup_create(&nd, 1);
-    if (!IS_ERR(dentry)) {
-        err = vfs_mkdir(nd.dentry->d_inode, dentry, mode);
-        if (err)
-            kernel_printf_vfs_errno(err);
-        dput(dentry);
-    }
-    else {
-        kernel_printf_vfs_errno(PTR_ERR(dentry));
-    }
-
-    path_release(&nd);
-    return 0;
-}
+//u32 vfs_mkdir(struct inode *dir, struct dentry *dentry, int mode) {
+//
+//    if (!dir->i_op || !dir->i_op->mkdir)
+//        return -EPERM;
+//
+//#ifdef DEBUG_VFS
+//    kernel_printf("now in vfs_mkdir()\n");
+//    kernel_printf("     dentry: %s\n", dentry->d_name.name);
+//#endif
+//
+//    mode &= S_ISVTX;
+//    u32 err = dir->i_op->mkdir(dir, dentry, mode);
+//
+//    return err;
+//}
+//
+//struct dentry * lookup_hash(struct qstr *name, struct dentry * base) {
+//    return __lookup_hash(name, base, NULL);
+//}
+//
+//struct dentry * lookup_create(struct nameidata *nd, int is_dir) {
+//    struct dentry *dentry;
+//
+//    // 检查nd参数是否正确
+//    dentry = ERR_PTR(-EEXIST);
+//    if (nd->last_type != LAST_NORM)
+//        goto fail;
+//
+//    // 去掉nd的flag，尝试找一下dentry；如果找不到，lookup_hash函数会创建一个新的dentry
+//    nd->flags &= ~LOOKUP_PARENT;
+//    dentry = lookup_hash(&nd->last, nd->dentry);
+//
+//#ifdef DEBUG_VFS
+//    kernel_printf("now in lookup_create(%s, %s) %d\n", nd->last.name, nd->dentry->d_name.name, dentry);
+//#endif
+//
+//    if (IS_ERR(dentry))
+//        goto fail;
+//
+//    // 目录或文件不存在的情况
+//    if (!is_dir && nd->last.name[nd->last.len] && !dentry->d_inode)
+//        goto enoent;
+//
+//#ifdef DEBUG_VFS
+//    kernel_printf("now in lookup_create(%s, %s)\n", nd->last.name, nd->dentry->d_name.name);
+//#endif
+//
+//    return dentry;
+//
+//enoent:
+//    dput(dentry);
+//    dentry = ERR_PTR(-ENOENT);
+//fail:
+//    return dentry;
+//}
+//u32 sys_mkdir(const u8* path, u32 mode) {
+//    u32 err;
+//
+//    struct dentry *dentry;
+//    struct nameidata nd;
+//
+//    err = path_lookup(path, LOOKUP_PARENT, &nd);
+//    if (err) {
+//        kernel_printf_vfs_errno(err);
+//        return 0;
+//    }
+//
+//#ifdef DEBUG_VFS
+//    kernel_printf("now in sys_mkdir()\n");
+//    kernel_printf("     nd_last: %s\n", nd.last.name);
+//    kernel_printf("     nd_dentry: %s\n", nd.dentry->d_name.name);
+//#endif
+//
+//    dentry = lookup_create(&nd, 1);
+//    if (!IS_ERR(dentry)) {
+//        err = vfs_mkdir(nd.dentry->d_inode, dentry, mode);
+//        if (err)
+//            kernel_printf_vfs_errno(err);
+//        dput(dentry);
+//    }
+//    else {
+//        kernel_printf_vfs_errno(PTR_ERR(dentry));
+//    }
+//
+//    path_release(&nd);
+//    return 0;
+//}
 
 u32 may_delete(struct inode *dir, struct dentry * victim, int isdir) {
     u32 error;
@@ -262,72 +369,72 @@ u32 may_delete(struct inode *dir, struct dentry * victim, int isdir) {
 //        return -EBUSY;
     return 0;
 }
-
-u32 vfs_rmdir(struct inode *dir, struct dentry *dentry) {
-    u32 err;
-
-    err = may_delete(dir, dentry, 1);
-    if (err)
-        return err;
-
-    if (!dir->i_op || !dir->i_op->rmdir)
-        return -EPERM;
-
-//    dentry_unhash(dentry);
-//    if (d_mountpoint(dentry))
+//
+//u32 vfs_rmdir(struct inode *dir, struct dentry *dentry) {
+//    u32 err;
+//
+//    err = may_delete(dir, dentry, 1);
+//    if (err)
+//        return err;
+//
+//    if (!dir->i_op || !dir->i_op->rmdir)
+//        return -EPERM;
+//
+////    dentry_unhash(dentry);
+////    if (d_mountpoint(dentry))
+////        error = -EBUSY;
+////    else {
+////        error = dir->i_op->rmdir(dir, dentry);
+////        if (!error)
+////            dentry->d_inode->i_flags |= S_DEAD;
+////    }
+////
+////    if (!error) {
+////        inode_dir_notify(dir, DN_DELETE);
+////        d_delete(dentry);
+////    }
+////    dput(dentry);
+//
+//    return err;
+//}
+//
+//u32 sys_rmdir(const u8 * pathname) {
+//    u32 error = 0;
+//    const u8 * name;
+//    struct dentry *dentry;
+//    struct nameidata nd;
+//
+//    name = pathname;
+//    if(IS_ERR(name))
+//        return PTR_ERR(name);
+//
+//    error = path_lookup(name, LOOKUP_PARENT, &nd);
+//    if (error)
+//        goto exit;
+//
+//    switch(nd.last_type) {
+//    case LAST_DOTDOT:
+//        error = -EINVAL;
+//        goto exit1;
+//    case LAST_DOT:
+//        error = -EINVAL;
+//        goto exit1;
+//    case LAST_ROOT:
 //        error = -EBUSY;
-//    else {
-//        error = dir->i_op->rmdir(dir, dentry);
-//        if (!error)
-//            dentry->d_inode->i_flags |= S_DEAD;
+//        goto exit1;
+//    default:
+//        break;
 //    }
 //
-//    if (!error) {
-//        inode_dir_notify(dir, DN_DELETE);
-//        d_delete(dentry);
+//    dentry = lookup_hash(&nd.last, nd.dentry);
+//    error = PTR_ERR(dentry);
+//    if (!IS_ERR(dentry)) {
+//        error = vfs_rmdir(nd.dentry->d_inode, dentry);
+//        dput(dentry);
 //    }
-//    dput(dentry);
-
-    return err;
-}
-
-u32 sys_rmdir(const u8 * pathname) {
-    u32 error = 0;
-    const u8 * name;
-    struct dentry *dentry;
-    struct nameidata nd;
-
-    name = pathname;
-    if(IS_ERR(name))
-        return PTR_ERR(name);
-
-    error = path_lookup(name, LOOKUP_PARENT, &nd);
-    if (error)
-        goto exit;
-
-    switch(nd.last_type) {
-    case LAST_DOTDOT:
-        error = -EINVAL;
-        goto exit1;
-    case LAST_DOT:
-        error = -EINVAL;
-        goto exit1;
-    case LAST_ROOT:
-        error = -EBUSY;
-        goto exit1;
-    default:
-        break;
-    }
-
-    dentry = lookup_hash(&nd.last, nd.dentry);
-    error = PTR_ERR(dentry);
-    if (!IS_ERR(dentry)) {
-        error = vfs_rmdir(nd.dentry->d_inode, dentry);
-        dput(dentry);
-    }
-
-exit1:
-    path_release(&nd);
-exit:
-    return error;
-}
+//
+//exit1:
+//    path_release(&nd);
+//exit:
+//    return error;
+//}

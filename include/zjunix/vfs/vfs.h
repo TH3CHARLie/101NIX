@@ -319,6 +319,7 @@ u32 vfs_cat(const u8 *);
 u32 vfs_cd(const u8 *);
 u32 vfs_ls(const u8 *);
 u32 vfs_rm(const u8 *);
+u32 vfs_pwd();
 u32 vfs_mount();
 
 // filesystems.c
