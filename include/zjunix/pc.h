@@ -55,9 +55,10 @@ typedef struct task_struct {
     pid_t pid;
     pid_t tgid;
 
+    struct pid real_pid;
     // pids[PIDTYPE_PID](pid[0]) is the link to PID
     // pids[PIDTYPE_PGID](pid[1]) is the link to PGID
-    struct pid_link pids[PIDTYPE_MAX];
+    // struct pid_link pids[PIDTYPE_MAX];
 
     // process relations:
 

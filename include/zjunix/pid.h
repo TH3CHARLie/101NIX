@@ -2,6 +2,7 @@
 #define _101NIX_PID_H_
 #include <zjunix/list.h>
 
+#define MAX_PID_NAMESPACE_CNT 5
 // ignore session id
 // since session is often used as login
 // no login happens in our OS
@@ -21,20 +22,20 @@ struct upid {
 // tasks[PIDTYPE_PID] points to the process own it
 // tasks[PIDTYPE_PGID] points to process group's plink[]
 struct pid {
-    int count;
+    // int count;
     int level;
-    struct hlist_head tasks[PIDTYPE_MAX];
-    struct upid numbers[1];
+    struct task_struct* task_ptr;
+    struct upid numbers[MAX_PID_NAMESPACE_CNT];
 };
 
-struct pid_link {
-    struct hlist_node node;
-    struct pid *pid;
-};
+// struct pid_link {
+//     struct hlist_node node;
+//     struct pid *pid;
+// };
 
 struct task_struct;
 
-#define PIDMAP_MAX_ENTRY 64
+#define PIDMAP_MAX_ENTRY 16
 #define PIDMAP_BYTE ((PIDMAP_MAX_ENTRY + 7) >> 3)
 struct pidmap {
     int nr_free;
@@ -68,7 +69,13 @@ bool pid_namespace_full(struct pid_namespace* ns);
 
 void init_pidmap(struct pidmap* pidmap);
 
-struct pid* alloc_pid(struct pid_namespace* ns);
+pid_t alloc_pid_nr_from_ns(struct pid_namespace* ns);
 
+struct pid_namespace* pid_namespace_create(struct pid_namespace *ns);
+
+int assign_real_pid_from_ns(struct task_struct *task,
+                            struct pid_namespace *ns);
+
+int free_real_pid(struct task_struct *task);
 
 #endif
