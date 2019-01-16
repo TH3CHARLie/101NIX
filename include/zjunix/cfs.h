@@ -3,17 +3,34 @@
 #include <zjunix/list.h>
 #include <zjunix/rbtree.h>
 
+
+// constant for prio equals to 0, serve as metric
 #define NICE_0_LOAD 1024
+
+// use for u32 overflow check
 #define U32_MAX 2147483647
+
+// CFS maximum schedule period,
+// each process is guaranteed to get run at lease 
+// once in such a period
 static const unsigned int sysctl_sched_latency = 9600000;
 
+// CFS timer interrupt period,
+// the clock will cause an interrupt in such a period
+// the current process will caculate time slice it used
+// and check whether to do scedule later
 static const unsigned int sysctl_sched_min_granularity_ns = 1200000;
 
 // 4:3 to min granularity
+// serve as wakeup compensation
 static const unsigned int sysctl_sched_wakeup_granularity = 1600000;
 
+// unit time period, used to calculate normalized time
 static const unsigned int sysctl_sched_time_unit = 20000;
 
+// CFS default maximum process,
+// however, if the process number is greater than this
+// the period will use sysctl_sched_min_granularity_ns * nr
 static const unsigned int sysctl_sched_nr_latency = 8;
 /*
  * Nice levels are multiplicative, with a gentle 10% change for every
@@ -109,8 +126,10 @@ struct cfs_rq {
   // cache of se of minimum vruntime
   struct rb_node* rb_leftmost;
 
+  // current process's se
   struct sched_entity* curr;
 
+  // indicator whether the cfs_rq needs to schedule
   bool NEED_SCHED;
 };
 

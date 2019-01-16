@@ -45,6 +45,10 @@ void create_startup_process() {
     task_create("time_proc", system_time_proc, 0, 0, 0, 0);
     log(LOG_OK, "Timer init");
     task_create("idle", useless, 0, 0, 1, 0);
+    task_create("idle_nice_minus", useless, 0, 0, -1, 0);
+    task_create("idle_too_nice", useless, 0, 0, 5, 0);
+    task_create("idle_too_mean", useless, 0, 0, -5, 0);
+    
 }
 #pragma GCC pop_options
 
