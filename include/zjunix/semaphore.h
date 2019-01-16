@@ -18,12 +18,19 @@ typedef struct {
 } semaphore_struct;
 
 void semaphore_init();
+
 int semaphore_create(void* name, int count);
+
 void semaphore_delete(void* name);
+
 void semaphore_wait(void* name);
+
 void semaphore_signal(void* name);
+
 semaphore_struct* semaphore_get(void* name);
+
 void customer_proc();
+
 void producer_proc();
 
 #endif
