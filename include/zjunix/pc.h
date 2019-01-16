@@ -77,20 +77,38 @@ typedef struct task_struct {
 
     // nice value, can be reassigned using syscall
     int nice;
+    
     // static priority, will not change during ex
     int static_prio;
+    
+    // real-time priority
     int prio;
 
+    // cfs schedule entity
     struct sched_entity se;
+
+    // process name
     char name[32];
 
+    // list_head to link on the task list
     struct list_head task_node;
+
+    // list_head to identify state, link on state list
     struct list_head state_node;
+    
+    // memory:
+
+    // whether the process is user process
     int user_mode;
+
+    // ptr to virtual memory
     void *vm;
+    
+    // user pc memory
     memory_block_struct *user_pc_memory_blocks[9];
 } task_struct;
 
+// use union to force each PCB is 4096 bytes
 typedef union task_union {
     struct task_struct task;
     unsigned char kernel_stack[TASK_KERNEL_SIZE];
@@ -121,5 +139,8 @@ struct task_struct *get_current_task();
 int task_exec_from_file(char *filename);
 
 int print_proc();
+
+void vruntime_test();
+
 void print_rbtree(struct rb_node *tree, struct rb_node *parent, int direction);
 #endif  // _101NIX_SCHED_H_

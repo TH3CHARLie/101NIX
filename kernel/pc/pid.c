@@ -194,6 +194,8 @@ struct pid_namespace *pid_namespace_create(struct pid_namespace *parent) {
 //   return pid;
 // }
 
+// assign a process with new pid from ns
+// it will pick next avaliable pid value from ns's bitmap as this level's pid_val
 int assign_real_pid_from_ns(struct task_struct *task,
                             struct pid_namespace *ns) {
   if (!ns) {
@@ -226,6 +228,8 @@ int assign_real_pid_from_ns(struct task_struct *task,
   return 0;
 }
 
+// free a real_pid
+// used in task_kill
 int free_real_pid(struct task_struct *task) {
   int level = task->real_pid.level;
   struct pid_namespace *ns = NULL;

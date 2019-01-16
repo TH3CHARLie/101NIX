@@ -53,6 +53,14 @@ void create_test_prog() {
   task_create("5555", empty_test, 0, 0, 0, 1);
 }
 
+void create_vruntime_test() {
+  task_create("nice_zero", empty_test, 0, 0, 0, 1);
+  task_create("nice_one", empty_test, 0, 0, 1, 1);
+  task_create("nice_minus_one", empty_test, 0, 0, -1, 1);
+  task_create("nice_two", empty_test, 0, 0, 2, 1);
+  task_create("nice_minus_two", empty_test, 0, 0, -2, 1);
+}
+
 void get_a_str(char *a, char **p) {
   while (**p == ' ') (*p)++;
   int i;
@@ -171,7 +179,11 @@ void parse_cmd() {
     task_wakeup(pid);
   } else if (kernel_strcmp(ps_buffer, "time") == 0) {
     task_create("time_proc", system_time_proc, 0, 0, 0, 0);
-  } else if (kernel_strcmp(ps_buffer, "proc") == 0) {
+  } else if (kernel_strcmp(ps_buffer, "vruntime") == 0) {
+    kernel_printf("run vruntime test\n");
+    create_vruntime_test();
+  }
+  else if (kernel_strcmp(ps_buffer, "proc") == 0) {
     result = proc_demo_create();
     kernel_printf("proc return with %d\n", result);
   } else if (kernel_strcmp(ps_buffer, "test") == 0) {
