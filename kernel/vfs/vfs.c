@@ -60,7 +60,7 @@ u32 init_vfs(){
         if (MBR->m_type[i] == PARTITION_TYPE_FAT32) {
 
         } else if (MBR->m_type[i] == PARTITION_TYPE_EXT2) {
-            err = init_ext2(MBR->m_base[i], DEV_NAME);            // 第二个分区为EXT2，读取元数据。并挂载EXT2文件系统与指定位置（/ext）
+            err = init_ext2(MBR->m_base[i], DEV_NAME);
             if (IS_ERR_VALUE(err)) {
                 log(LOG_FAIL, "init_ext2()");
                 goto vfs_init_err;
@@ -69,19 +69,12 @@ u32 init_vfs(){
         }
     }
 
-//    err = mount_ext2();                         // 挂载EXT2文件系统与指定位置（/ext），读取元数据
-//    if ( IS_ERR_VALUE(err) ){
-//        my_log(LOG_FAIL, "mount_ext2()");
-//        goto vfs_init_err;
-//    }
-//    my_log(LOG_OK, "mount_ext2()");
-
     print_file_systems();
 
     return 0;
 
-    vfs_init_err:
-    kernel_printf_vfs_errno(err);                 // 发生错误，则打印错误代码
+vfs_init_err:
+    kernel_printf_vfs_errno(err);                // 发生错误，则打印错误代码
     return err;
 }
 
@@ -96,7 +89,7 @@ u32 vfs_read_MBR(){
     MBR = (struct master_boot_record*)kmalloc(sizeof(struct master_boot_record));
     if (MBR == 0)
         return -ENOMEM;
-
+    
     kernel_memset(MBR->m_data, 0, sizeof(u8) * SECTOR_SIZE);
     if (read_block(MBR->m_data, 0, 1))              // MBR在外存的0号扇区
         goto vfs_read_MBR_err;
@@ -116,7 +109,7 @@ u32 vfs_read_MBR(){
         ptr_lba  += DPT_ENTRY_LEN;
         ptr_type += DPT_ENTRY_LEN;
 #ifdef DEBUG_VFS
-        kernel_printf("   MBR[%d]: base: %u %u\n", MBR->m_count, part_lba, part_type);
+        kernel_printf("   MBR[%d]: base: %d %d\n", MBR->m_count, part_lba, part_type);
 #endif
     }
 
@@ -130,7 +123,7 @@ u32 vfs_read_MBR(){
 
     return 0;
 
-    vfs_read_MBR_err:
+vfs_read_MBR_err:
     kfree(MBR);
     return -EIO;
 }
@@ -138,7 +131,7 @@ u32 vfs_read_MBR(){
 // 初始化文件系统
 // TODO init_rootfs()
 u32 init_file_systems() {
-
+    
     file_systems = (struct file_system_type *)kmalloc(sizeof(struct file_system_type));
     if (file_systems == 0)
         return -ENOMEM;
@@ -150,7 +143,7 @@ u32 init_file_systems() {
     return 0;
 }
 
-
+// 根据不同的错误输出错误信息
 void kernel_printf_vfs_errno(u32 err){
     if (err == -EPERM) {
         kernel_printf("[VFS ERROR]: Operation not permitted\n");

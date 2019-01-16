@@ -114,7 +114,7 @@ u32 init_fat32(u32 base){
     fat32_fs_type->name = "fat32";
     fat32_fs_type->next = NULL;
     // INIT_LIST_HEAD(&(fat32_fs_type->fs_supers));
-    register_filesystem(fat32_fs_type);
+    fat32_fs_type = register_filesystem(fat32_fs_type);
 
     // 构建 super_block 结构
     fat32_sb = (struct super_block *) kmalloc ( sizeof(struct super_block) );
@@ -182,8 +182,8 @@ u32 init_fat32(u32 base){
 
     // icache->c_op->add(icache, (void *)root_inode);
 
-    // kernel_printf("here ok1\n");
-    // return -1;
+     kernel_printf("here ok1\n");
+     // return -1;
     
     // 与root_dentry关联
     root_dentry->d_inode = root_inode;
@@ -214,7 +214,7 @@ u32 init_fat32(u32 base){
         next_clu = read_fat(root_inode, next_clu);
     }
 
-    // kernel_printf("here ok1\n");
+    kernel_printf("here ok1\n");
     //     return -1;
 
     // 预先读取根目录的数据

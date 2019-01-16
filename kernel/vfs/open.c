@@ -13,28 +13,6 @@ extern struct dentry    *pwd_dentry;
 extern struct vfsmount  *root_mnt;
 extern struct vfsmount  *pwd_mnt;
 
-// 文件打开函数
-struct file* vfs_open(const u8 *filename, u32 flags, u32 mode){
-    u32 namei_flags;
-    u32 err;
-    struct file         *f;
-    struct nameidata    nd;
-
-    // 重置flags，因为内外部定义有些地方不一致
-    namei_flags = flags;                                 
-    if ((namei_flags + 1) & O_ACCMODE)
-        namei_flags ++;
-    
-    // 逐层解析路径，并把文件关联的dentry和vfsmount对象保存在nd结构中
-    err = open_namei(filename, namei_flags, mode, &nd);
-
-    // 用得到的nd结构初始化file对象，并返回
-    if (!err)
-        return dentry_open(nd.dentry, nd.mnt, flags);
-
-    return ERR_PTR(err);
-}
-
 u32 open_namei(const u8 *pathname, u32 flag, u32 mode, struct nameidata *nd){
     u32 err;
     u32 acc_mode;
@@ -122,7 +100,7 @@ struct dentry * __lookup_hash(struct qstr *name, struct dentry *base, struct nam
     if (!inode->i_ino)
         return 0;
 #ifdef DEBUG_EXT2
-    kernel_printf("now in __lookup_hash(%s)\n", name->name);
+    kernel_printf("now in __lookup_hash(%s) begin: \n", name->name);
 #endif
 
     if (nd) {
@@ -139,7 +117,7 @@ struct dentry * __lookup_hash(struct qstr *name, struct dentry *base, struct nam
         struct dentry * new = d_alloc(base, name);
 
 #ifdef DEBUG_EXT2
-        kernel_printf("now in __lookup_hash(%s), get new dentry: %d\n", name->name, new);
+        kernel_printf("now in __lookup_hash(%s), get new dentry: %x\n", name->name, new);
 #endif
 
 		dentry = ERR_PTR(-ENOMEM);
@@ -150,10 +128,10 @@ struct dentry * __lookup_hash(struct qstr *name, struct dentry *base, struct nam
 		dentry = inode->i_op->lookup(inode, new, nd);
 
 #ifdef DEBUG_EXT2
-        kernel_printf("now in __lookup_hash(%s), try to find dentry on sd: %d\n", name->name, dentry);
+        kernel_printf("now in __lookup_hash(%s), try to find dentry on sd: %x\n", name->name, dentry);
 #endif
 
-		if (!dentry) {
+		if (dentry == 0) {
 #ifdef DEBUG_EXT2
             kernel_printf("now in __lookup_hash(%s), no inode found\n", name->name);
 #endif
@@ -507,19 +485,8 @@ cleanup_dentry:
     return ERR_PTR(error);
 }
 
-// 文件关闭入口
-u32 vfs_close(struct file *filp) {
-	u32 err;
-
-    // 把页高速缓存的数据（如果需要）全部写回磁盘    
-	err = filp->f_op->flush(filp);
-    if (!err)
-        kfree(filp);
-
-	return err;
-}
-
 // 根据相应信息新建一个dentry项，填充相关信息，并放进dentry高速缓存
+// 旧版本的d_alloc，可能有可以优化的地方
 struct dentry * d_alloc(struct dentry *parent, const struct qstr *name) {
     u8 *dname;
     u32 i;
@@ -530,9 +497,9 @@ struct dentry * d_alloc(struct dentry *parent, const struct qstr *name) {
 #endif
 
     dentry = (struct dentry *)kmalloc(sizeof(struct dentry));
-    if (!dentry)  
+    if (!dentry)
         return 0;
-    
+
     dname = (u8 *)kmalloc((name->len + 1) * sizeof(u8));
     kernel_memset(dname, 0, (name->len + 1));
     for (i = 0; i < name->len; i++)
@@ -540,15 +507,16 @@ struct dentry * d_alloc(struct dentry *parent, const struct qstr *name) {
     dname[i] = '\0';
 
     dentry->d_name.name         = dname;
-    dentry->d_name.len          = name->len;   
+    dentry->d_name.len          = name->len;
     dentry->d_count             = 1;
-    dentry->d_inode             = 0;  
+    dentry->d_inode             = 0;
     dentry->d_parent            = parent;
     dentry->d_sb                = parent->d_sb;
     dentry->d_op                = 0;
-    
-    INIT_LIST_HEAD(&dentry->d_hash);  
-    INIT_LIST_HEAD(&dentry->d_LRU);  
+    dentry->d_mounted           = 0;
+
+    INIT_LIST_HEAD(&dentry->d_hash);
+    INIT_LIST_HEAD(&dentry->d_LRU);
     INIT_LIST_HEAD(&dentry->d_subdirs);
     INIT_LIST_HEAD(&(root_dentry->d_alias));
 
@@ -557,14 +525,15 @@ struct dentry * d_alloc(struct dentry *parent, const struct qstr *name) {
         dget(parent);
         dentry->d_sb = parent->d_sb;
         list_add(&dentry->d_child, &parent->d_subdirs);
-	} else {
-		INIT_LIST_HEAD(&dentry->d_child);
-	}
+    } else {
+        INIT_LIST_HEAD(&dentry->d_child);
+    }
 
     dcache->c_op->add(dcache, (void*)dentry);
 
 #ifdef DEBUG_VFS
-    kernel_printf("now is going to leave d_alloc(%s, %s) %x\n", parent->d_name.name, name->name, dentry);
+    kernel_printf("            [d_alloc] have a new dentry object: (%s, %s) %x\n",
+                  parent->d_name.name, name->name, dentry);
 #endif
 
     return dentry;

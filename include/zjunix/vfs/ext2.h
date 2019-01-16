@@ -20,54 +20,54 @@
 
 // 文件类型
 enum {
-	EXT2_FT_UNKNOWN,
-	EXT2_FT_REG_FILE,
-	EXT2_FT_DIR,
+         EXT2_FT_UNKNOWN,     
+         EXT2_FT_REG_FILE,
+         EXT2_FT_DIR,   
 };
 
 // EXT2 文件系统信息汇总
 struct ext2_base_information {
-	u32                 ex_base;                            // 启动块的基地址（绝对扇区地址，下同）
-	u32                 ex_first_sb_sect;                   // 第一个super_block的基地址
-	u32                 ex_first_gdt_sect;                  // 第一个组描述符表的基地址
+    u32                 ex_base;                            // 启动块的基地址（绝对扇区地址，下同）
+    u32                 ex_first_sb_sect;                   // 第一个super_block的基地址
+    u32                 ex_first_gdt_sect;                  // 第一个组描述符表的基地址
 	u32					ex_blksize;							// 块大小，根据sb的信息读到
-	u32      			s_groups_count;						// 块组个数(组描述符数量)
+    u32      			s_groups_count;						// 块组个数(组描述符数量)
 	u32					s_desc_per_block;					// 每块中组描述符数量
 	union {
-		u8                  		*data;
-		struct ext2_super_block   	*attr;
-	} sb;                                                   // 超级块数据
+        u8                  		*data;
+        struct ext2_super_block   	*attr;
+    } sb;                                                   // 超级块数据
 };
-
+        
 // EXT2 文件系统内部超级块
 struct ext2_super {
-	u32                 inode_num;                          // inode数
-	u32                 block_num;                          // 块数
-	u32                 res_block_num;                      // 保留块数
-	u32                 free_block_num;                     // 空闲块数
-	u32                 free_inode_num;                     // 空闲inode数
-	u32                 first_data_block_no;                // 第一个数据块号
-	u32                 block_size;                         // 块长度（从1K开始的移位数）
-	u32                 slice_size;                         // 片长度（从1K开始的移位数）
-	u32                 blocks_per_group;                   // 每组块数
-	u32                 slices_per_group;                   // 每组片数
-	u32                 inodes_per_group;                   // 每组indoes数
-	u32                 install_time;                       // 安装时间
-	u32                 last_write_in;                      // 最后写入时间
-	u16                 install_count;                      // 安装计数
-	u16                 max_install_count;                  // 最大安装数
-	u16                 magic;                              // 魔数
-	u16                 state;                              // 状态
-	u16                 err_action;                         // 出错动作
-	u16                 edition_change_mark;                // 改版标志
-	u32                 last_check;                         // 最后检测时间
-	u32                 max_check_interval;                 // 最大检测间隔
-	u32                 operating_system;                   // 操作系统
-	u32                 edition_mark;                       // 版本标志
-	u16                 uid;                                // uid
-	u16                 gid;                                // pid
-	u32                 first_inode;                        // 第一个非保留的inode
-	u16                 inode_size;                         // inode的大小
+    u32                 inode_num;                          // inode数
+    u32                 block_num;                          // 块数
+    u32                 res_block_num;                      // 保留块数
+    u32                 free_block_num;                     // 空闲块数
+    u32                 free_inode_num;                     // 空闲inode数
+    u32                 first_data_block_no;                // 第一个数据块号
+    u32                 block_size;                         // 块长度（从1K开始的移位数）
+    u32                 slice_size;                         // 片长度（从1K开始的移位数）
+    u32                 blocks_per_group;                   // 每组块数
+    u32                 slices_per_group;                   // 每组片数
+    u32                 inodes_per_group;                   // 每组indoes数
+    u32                 install_time;                       // 安装时间
+    u32                 last_write_in;                      // 最后写入时间
+    u16                 install_count;                      // 安装计数
+    u16                 max_install_count;                  // 最大安装数
+    u16                 magic;                              // 魔数
+    u16                 state;                              // 状态
+    u16                 err_action;                         // 出错动作
+    u16                 edition_change_mark;                // 改版标志
+    u32                 last_check;                         // 最后检测时间
+    u32                 max_check_interval;                 // 最大检测间隔
+    u32                 operating_system;                   // 操作系统
+    u32                 edition_mark;                       // 版本标志
+    u16                 uid;                                // uid
+    u16                 gid;                                // pid
+    u32                 first_inode;                        // 第一个非保留的inode
+    u16                 inode_size;                         // inode的大小
 };
 
 typedef unsigned int 	__le32;
@@ -113,11 +113,11 @@ struct ext2_super_block {
 	char            s_last_mounted[64]; 	    /* directory where last mounted */
 	__le32          s_algorithm_usage_bitmap;   /* For compression */
 
-	__u8	        s_prealloc_blocks;	        /* Nr of blocks to try to preallocate*/
+    __u8	        s_prealloc_blocks;	        /* Nr of blocks to try to preallocate*/
 	__u8	        s_prealloc_dir_blocks;	    /* Nr to preallocate for dirs */
 	__u16	        s_padding1;
 
-	__u8	        s_journal_uuid[16];	        /* uuid of journal superblock */
+    __u8	        s_journal_uuid[16];	        /* uuid of journal superblock */
 	__u32	        s_journal_inum;		        /* inode number of journal file */
 	__u32	        s_journal_dev;		        /* device number of journal file */
 	__u32	        s_last_orphan;		        /* start of list of inodes to delete */
@@ -139,8 +139,8 @@ struct ext2_super_block {
 struct ext2_dir_entry_2 {
 	u32	                ino;                                // 文件的inode号
 	u16                 rec_len;                            // 目录项长度（字节）
-	u8	                name_len;                           // 名字长度（字节）
-	u8                  file_type;                          // 文件类型
+    u8	                name_len;                           // 名字长度（字节）
+    u8                  file_type;                          // 文件类型
 	char	            name[EXT2_NAME_LEN];                // 名字
 };
 
@@ -174,8 +174,8 @@ struct ext2_inode {
 	u32	                i_generation;                       // （NFS用）文件的版本
 	u32	                i_file_acl;                         // 文件的ACL
 	u32	                i_dir_acl;                          // 目录的ACL
-	u32	                i_faddr;                            // 碎片地址
-	u32                 osd2[3];                            // 与操作系统相关2
+    u32	                i_faddr;                            // 碎片地址
+    u32                 osd2[3];                            // 与操作系统相关2
 };
 
 
@@ -192,9 +192,9 @@ u32 ext2_set_inode_bitmap(struct inode *inode);
 u32 ext2_group_base_sect(struct inode *);
 
 struct ext2_group_desc * ext2_get_group_desc(struct ext2_base_information * ext2_BI,
-											 u32 ino, int flag);
+                                             u32 ino, int flag);
 void ext2_write_group_desc(struct ext2_group_desc * gdt, struct ext2_base_information * ext2_BI,
-						   u32 ino, int flag);
+                           u32 ino, int flag);
 
 struct ext2_base_information *EXT2_SB(struct super_block *sb);
 void ext2_sync_super(struct super_block *sb);

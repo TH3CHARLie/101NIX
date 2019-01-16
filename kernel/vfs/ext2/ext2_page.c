@@ -89,6 +89,7 @@ u32 ext2_bmap(struct inode * inode, u32 page_no) {
     if (page_no < entry_num * entry_num) {
         read_block(data, page[EXT2_SECOND_MAP_INDEX], sect_cnt);
         addr = get_u32(data + ((page_no / entry_num) << EXT2_BLOCK_ADDR_SHIFT));
+
         read_block(data, addr, sect_cnt);
         retval = get_u32(data + ((page_no % entry_num) << EXT2_BLOCK_ADDR_SHIFT));
         goto ok;
@@ -99,16 +100,21 @@ u32 ext2_bmap(struct inode * inode, u32 page_no) {
     if (page_no < entry_num * entry_num * entry_num) {
         read_block(data, page[EXT2_THIRD_MAP_INDEX], sect_cnt);
         addr = get_u32(data + ((page_no / (entry_num * entry_num)) << EXT2_BLOCK_ADDR_SHIFT));
+
         read_block(data, addr, sect_cnt);
         page_no = page_no % (entry_num * entry_num);
         addr = get_u32(data + ((page_no / entry_num) << EXT2_BLOCK_ADDR_SHIFT));
+
         read_block(data, addr, sect_cnt);
         retval = get_u32(data + ((page_no % entry_num) << EXT2_BLOCK_ADDR_SHIFT));
         goto ok;
     }
 
-    ok:
+ok:
     kfree(data);
-    out:
+out:
+
+    kernel_printf("      ext2_bmap: %d %d -> %d\n", inode->i_ino, page_no, retval);
+
     return retval;
 }

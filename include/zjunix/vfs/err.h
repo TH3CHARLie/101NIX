@@ -39,6 +39,4 @@ static inline u32 PTR_ERR_OR_ZERO(const void *ptr){
 		return 0;
 }
 
-#define PTR_RET(p) PTR_ERR_OR_ZERO(p)
-
 #endif

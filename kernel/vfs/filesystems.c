@@ -18,11 +18,12 @@ static struct file_system_type ** find_filesystem(const u8 *name) {
     for (p = &file_systems; *p; p = &(*p)->next)
         if (kernel_strcmp((*p)->name, name) == 0)
             break;
-
+    
     return p;
 }
 
 // 注册文件系统函数。将其链接在全局`file_systems`的链表中
+// 这是一个单向链表
 struct file_system_type * register_filesystem(struct file_system_type * fs) {
     struct file_system_type * res;
     struct file_system_type ** p;
@@ -38,7 +39,7 @@ struct file_system_type * register_filesystem(struct file_system_type * fs) {
     }
 
     INIT_LIST_HEAD(&fs->fs_supers);
-    // TODO: lock,
+    // TODO: lock, 
     // lockup(&file_systems_lock);
 
     // 找到`file_systems`中第一个空指针位置
@@ -57,11 +58,12 @@ struct file_system_type * register_filesystem(struct file_system_type * fs) {
     // unlock(&file_systems_lock);
     return res;
 
-    fail:
+fail:
     kernel_printf_vfs_errno(err);
     return fs;
 }
 
+// 删除文件系统操作。经过此函数后，该文件系统在vfs将不能挂载
 u32 unregister_filesystem(struct file_system_type * fs) {
     struct file_system_type ** tmp;
 
@@ -76,7 +78,7 @@ u32 unregister_filesystem(struct file_system_type * fs) {
             return 0;
         }
     }
-
+    
     // TODO: unlock
     // unlock(&file_systems_lock);
     return -EINVAL;
@@ -90,6 +92,8 @@ struct super_block *get_sb_bdev(struct file_system_type *fs_type,
     return NULL;
 }
 
+// 获得某个超级块，这里的方法比较简单，与linux不同
+// 由于我们会给每个超级块分配一个唯一的逻辑名称，因此直接在链表中比对名称就可以找到这个超级块了
 struct super_block * get_sb(struct file_system_type * fs, const u8 * name) {
     struct list_head    *p;
     struct list_head    *start;
@@ -105,10 +109,13 @@ struct super_block * get_sb(struct file_system_type * fs, const u8 * name) {
     return ERR_PTR(-EINVAL);
 }
 
+// 获得某个文件系统的名称
 struct file_system_type *get_fs_type(const u8 *name) {
     return *(find_filesystem(name));
 }
 
+// 打印文件系统的注册情况
+// 每行是一类文件系统，其后会跟着该文件系统对应的超级块逻辑描述名
 void print_file_systems() {
     struct list_head        *  start, * tmp;
     struct super_block      *  sb;

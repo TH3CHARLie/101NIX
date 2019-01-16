@@ -52,10 +52,10 @@ u32 log2(u32 word) {
     u32 b = 0, s;
 
     s = 16; if (word << 16 != 0) s = 0; b += s; word >>= s;
-    s =  8; if (word << 24 != 0) s = 0; b += s; word >>= s;
-    s =  4; if (word << 28 != 0) s = 0; b += s; word >>= s;
-    s =  2; if (word << 30 != 0) s = 0; b += s; word >>= s;
-    s =  1; if (word << 31 != 0) s = 0; b += s;
+	s =  8; if (word << 24 != 0) s = 0; b += s; word >>= s;
+	s =  4; if (word << 28 != 0) s = 0; b += s; word >>= s;
+	s =  2; if (word << 30 != 0) s = 0; b += s; word >>= s;
+	s =  1; if (word << 31 != 0) s = 0; b += s;
 
     return b;
 }
@@ -70,7 +70,7 @@ u32 generic_compare_filename(const struct qstr *a, const struct qstr *b) {
         if (a->name[i] != b->name[i])
             return 1;
 
-    return 0;
+	return 0;
 }
 
 // 不区分大小写的文件名比较方法（相等则返回0）
@@ -99,10 +99,10 @@ u32 fat32_compare_filename(const struct qstr *a, const struct qstr *b) {
 u32 get_bit(const u8 *bitmap, u32 index){
     const u8 *byte;
     u8 mask;
-
+    
     byte = bitmap + index / BITS_PER_BYTE;
     mask = 1 << (index % BITS_PER_BYTE);
-
+    
     return (u32)(*byte & mask) != 0;
 }
 
@@ -110,7 +110,7 @@ u32 get_bit(const u8 *bitmap, u32 index){
 void set_bit(u8 *bitmap, u32 index){
     u8 *byte;
     u8 mask;
-
+    
     byte = bitmap + index / BITS_PER_BYTE;
     mask = 1 << (index % BITS_PER_BYTE);
     *byte = mask | (*byte);
@@ -120,13 +120,14 @@ void set_bit(u8 *bitmap, u32 index){
 void reset_bit(u8 *bitmap, u32 index){
     u8 *byte;
     u8 mask;
-
+    
     byte = bitmap + index / BITS_PER_BYTE;
     mask = 1 << (index % BITS_PER_BYTE);
     mask = mask ^ 0xFF;
     *byte = mask & (*byte);
 }
 
+// 找到位图上的第一个0
 u32 find_first_zero_bit(u8 *bitmap, u32 blksize) {
     u32 i, j;
     u32 bitmask;
@@ -141,4 +142,26 @@ u32 find_first_zero_bit(u8 *bitmap, u32 blksize) {
     }
 
     return -EINVAL;
+}
+
+
+// 以下为哈希函数
+// 为整数值计算哈希值
+u32 __intHash(u32 key, u32 size) {
+    u32 mask = size - 1;
+    return key & mask;
+}
+
+// 为字符串计算哈希值
+u32 __stringHash(struct qstr * qstr, u32 size) {
+    u32 i = 0;
+    u32 value = 0;
+    u32 mask = size - 1;
+
+    for (i = 0; i < qstr->len; i++) {
+        value = value * 31 + (u32)(qstr->name[i]);
+        value = value & mask;
+    }
+
+    return value;
 }

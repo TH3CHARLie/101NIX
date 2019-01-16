@@ -36,7 +36,6 @@ void* dcache_look_up(struct cache *this, struct condition *cond) {
     hash = __stringHash(name, this->c_tablesize);
     start = &(this->c_hashtable[hash]);
 
-    // 遍历这个链表搜索，需要父目录及名字匹配
     for (p = start->next; p != start; p = p->next) {
         tested = container_of(p, struct dentry, d_hash);
         qstr = &(tested->d_name);
@@ -46,7 +45,7 @@ void* dcache_look_up(struct cache *this, struct condition *cond) {
     return 0;
 
     // 找到，更新链表和哈希表（提至最前），并返回
-    found:
+found:
     list_del(&(tested->d_hash));
     list_add(&(tested->d_hash), &(this->c_hashtable[hash]));
     list_del(&(tested->d_LRU));
@@ -59,15 +58,12 @@ void dcache_add(struct cache *this, void *object) {
     u32 hash;
     struct dentry* addend;
 
-    // 计算目录项名字对应的哈希值
     addend = (struct dentry *) object;
     hash = __stringHash(&addend->d_name, this->c_tablesize);
 
-    // 如果整个目录项缓冲已满，替换一项出去
     if (cache_is_full(this))
         dcache_put_LRU(this);
 
-    // 插入hash表和LRU链表
     list_add(&(addend->d_hash), &(this->c_hashtable[hash]));
     list_add(&(addend->d_LRU), &(this->c_LRU));
 
@@ -81,7 +77,6 @@ void dcache_put_LRU(struct cache *this) {
     struct dentry           *least_ref;
     struct dentry           *put_dentry;
 
-    // 从LRU的链表尾开始搜索
     start = &(this->c_LRU);
     for (put = start->prev; put != start; put = put->prev) {
         put_dentry = container_of(put, struct dentry, d_LRU);
@@ -104,8 +99,6 @@ void dcache_put_LRU(struct cache *this) {
         }
         put_dentry = least_ref;
     }
-
-    // 内存清理
     if (put_dentry)
         release_dentry(put_dentry);
     else

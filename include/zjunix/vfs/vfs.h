@@ -6,9 +6,10 @@
 #include <zjunix/vfs/err.h>
 #include <driver/vga.h>
 
-// #define DEBUG_EXT2
-// #define DEBUG_VFS
-// #define DEBUG_FAT32
+#define DEBUG_EXT2
+#define DEBUG_VFS
+//#define DEBUG_FAT32
+//#define DEBUG_SD
 
 #define DPT_MAX_ENTRY_COUNT                     4
 #define DPT_ENTRY_LEN                           16
@@ -76,6 +77,28 @@ enum {
          FT_REG_FILE,    
          FT_DIR    
 };
+
+// VFS文件类型
+#define S_IFMT  00170000
+#define S_IFSOCK 0140000
+#define S_IFLNK	 0120000
+#define S_IFREG  0100000
+#define S_IFBLK  0060000
+#define S_IFDIR  0040000
+#define S_IFCHR  0020000
+#define S_IFIFO  0010000
+#define S_ISUID  0004000
+#define S_ISGID  0002000
+#define S_ISVTX  0001000
+
+#define S_ISLNK(m)	(((m) & S_IFMT) == S_IFLNK)
+#define S_ISREG(m)	(((m) & S_IFMT) == S_IFREG)
+#define S_ISDIR(m)	(((m) & S_IFMT) == S_IFDIR)
+#define S_ISCHR(m)	(((m) & S_IFMT) == S_IFCHR)
+#define S_ISBLK(m)	(((m) & S_IFMT) == S_IFBLK)
+#define S_ISFIFO(m)	(((m) & S_IFMT) == S_IFIFO)
+#define S_ISSOCK(m)	(((m) & S_IFMT) == S_IFSOCK)
+
 
 // 由于C的编译需要
 struct vfs_page;
@@ -246,9 +269,15 @@ struct inode_operations {
     u32 (*create) (struct inode *,struct dentry *, u32, struct nameidata *);
     // 为包含在一个目录项对象中的文件名对应的索引节点查找目录
     struct dentry * (*lookup) (struct inode *,struct dentry *, struct nameidata *);
-	// mkdir
-	// rmdir
-	// mknod
+	// 在某一目录下，创建一个新的目录
+	u32 (*mkdir) (struct inode *,struct dentry *, u32);
+	// 在某一目录下，递归删除一个目录
+	u32 (*rmdir) (struct inode *,struct dentry *);
+	// 在某一目录下，创建一个设备文件
+	u32 (*mknod) (struct inode *,struct dentry *, int, int);
+	// 重命名
+	u32 (*rename) (struct inode *, struct dentry *,
+				   struct inode *, struct dentry *);
 };
 
 // 已缓存的页的操作函数
@@ -302,25 +331,29 @@ struct vfsmount * alloc_vfsmnt(const u8 *name);
 struct vfsmount * lookup_mnt(struct vfsmount *, struct dentry *);
 
 // utils.c
+u32 read_block(u8 *, u32, u32);
+u32 write_block(u8 *, u32, u32);
 u16 get_u16(u8 *);
 u32 get_u32(u8 *);
 void set_u16(u8 *, u16);
 void set_u32(u8 *, u32);
-u32 read_block(u8 *, u32, u32);
-u32 write_block(u8 *, u32, u32);
 u32 generic_compare_filename(const struct qstr *, const struct qstr *);
 u32 fat32_compare_filename(const struct qstr *a, const struct qstr *b);
 u32 get_bit(const u8 *, u32);
 void set_bit(u8 *, u32);
 void reset_bit(u8 *, u32);
+u32 find_first_zero_bit(u8 *bitmap, u32 blksize);
+u32 log2(u32 word);
 
 // usr.c
 u32 vfs_cat(const u8 *);
 u32 vfs_cd(const u8 *);
 u32 vfs_ls(const u8 *);
 u32 vfs_rm(const u8 *);
-u32 vfs_pwd();
-u32 vfs_mount();
+u32 vfs_mount(char *a, char *b, char *c, int mode);
+u32 vfs_umount(const u8 *dir_name);
+u32 sys_mkdir(const u8* path, u32 mode);
+u32 sys_touch(const u8* path, u32 mode);
 
 // filesystems.c
 struct file_system_type * register_filesystem(struct file_system_type * fs);
@@ -340,6 +373,7 @@ u32 do_mount(const u8 *dev_name, const u8 *dir_name,
 			static u32 graft_tree(struct vfsmount *mnt, struct nameidata *nd);
 	u32 do_move_mount(struct nameidata *nd, const u8 *dev_name);
 u32 do_umount(const u8 *dir_name);
+void path_release(struct nameidata *nd);
 
 // init.c
 struct dentry * alloc_dentry();

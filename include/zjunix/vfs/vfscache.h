@@ -71,6 +71,7 @@ void dcache_put_LRU(struct cache *);
 // void icache_put_LRU(struct cache *);
 // void icache_write_back(void *);
 
+struct vfs_page * pcache_get_page(struct cache * pcache, struct inode * inode, u32 page_no);
 void* pcache_look_up(struct cache *, struct condition *);
 void pcache_add(struct cache *, void *);
 void pcache_put_LRU(struct cache *);

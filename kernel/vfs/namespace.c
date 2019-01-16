@@ -22,6 +22,7 @@ static void detach_mnt(struct vfsmount *mnt, struct nameidata *old_nd) {
 #ifdef DEBUG_VFS
     kernel_printf("    [detach]: %s %s\n", old_nd->dentry->d_name.name, mnt->mnt_root->d_name.name);
 #endif
+
 }
 
 // 将mnt连接到nd这个位置上
@@ -35,6 +36,7 @@ static void attach_mnt(struct vfsmount *mnt, struct nameidata *nd) {
 #ifdef DEBUG_VFS
     kernel_printf("    [attach]: %s %s\n", nd->dentry->d_name.name, mnt->mnt_root->d_name.name);
 #endif
+
 }
 
 // 第一个参数是要挂载的设备名称，第二个参数是当前的全局路径名，
@@ -69,6 +71,7 @@ u32 do_mount(const u8 *dev_name, const u8 *dir_name,
     return err;
 }
 
+// 移动一个vfsmount的挂载点
 u32 do_move_mount(struct nameidata *nd, const u8 *old_name) {
     u32 err;
     struct nameidata old_nd, parent_nd;
@@ -128,7 +131,7 @@ u32 do_move_mount(struct nameidata *nd, const u8 *old_name) {
     //spin_unlock(&vfsmount_lock);
     //out1:
     //up(&nd->dentry->d_inode->i_sem);
-    out:
+out:
     //up_write(&current->namespace->sem);
     if (!err)
         path_release(&parent_nd);
@@ -154,6 +157,7 @@ u32 do_new_mount(struct nameidata *nd, const u8 *type_page, const u8 *dev_name) 
     return do_add_mount(mnt, nd);
 }
 
+// 新增一个vfsmount的挂载
 u32 do_add_mount(struct vfsmount *newmnt, struct nameidata *nd) {
     u32 err;
 
@@ -189,6 +193,7 @@ void mntput(struct vfsmount *mnt) {
     // deactivate_super(sb);
 }
 
+// 将某个vfsmount接入vfs树上
 static u32 graft_tree(struct vfsmount *mnt, struct nameidata *nd) {
     u32 err;
     struct list_head head;
@@ -219,7 +224,7 @@ static u32 graft_tree(struct vfsmount *mnt, struct nameidata *nd) {
     // mntget(mnt);
     err = 0;
 
-    // }
+   // }
 //    spin_unlock(&vfsmount_lock);
 //    out_unlock:
 //    up(&nd->dentry->d_inode->i_sem);
@@ -286,6 +291,7 @@ static struct vfsmount *next_mnt(struct vfsmount *p, struct vfsmount *root) {
     return list_entry(next, struct vfsmount, mnt_child);
 }
 
+// 递归写在mount子树，需要先找到所有的子挂载，依次删除挂载信息
 void umount_tree(struct vfsmount *mnt) {
     struct vfsmount *p;
     LIST_HEAD(kill);
@@ -320,6 +326,8 @@ void umount_tree(struct vfsmount *mnt) {
 //    return 0;
 //}
 
+// 内核进行umount操作的入口函数
+// 首先找到位置并检查相关信息，然后调用umount_tree进行真正的卸载
 u32 do_umount(const u8 *dir_name) {
     u32 err;
     struct nameidata nd;
@@ -338,7 +346,7 @@ u32 do_umount(const u8 *dir_name) {
     // 此处可以有权限检查
 //    err = do_umount(nd.mnt);
     umount_tree(nd.mnt);
-    out:
+out:
     path_release(&nd);
     return err;
 }
