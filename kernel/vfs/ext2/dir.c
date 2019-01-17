@@ -23,7 +23,7 @@ void ext2_append_to_end(struct inode * inode, struct ext2_dir_entry_2 *in, u32 l
     struct ext2_dir_entry_2 *ex_dir_entry;
 
 #ifdef DEBUG_EXT2
-    kernel_printf("now in ext2_append_to_end(%d, %s)\n", inode->i_ino, in->name);
+    kernel_printf("%sbegin ext2_append_to_end(%d, %s)\n", quad1, inode->i_ino, in->name);
 #endif
 
     for (i = 0; i < EXT2_FIRST_MAP_INDEX; i++) {
@@ -42,11 +42,11 @@ void ext2_append_to_end(struct inode * inode, struct ext2_dir_entry_2 *in, u32 l
             ex_dir_entry = (struct ext2_dir_entry_2 *)data;
 
 #ifdef DEBUG_EXT2
-            kernel_printf("    show ex_dir_entry: %d\n", ex_dir_entry->ino);
-            kernel_printf("              rec_len: %d\n", ex_dir_entry->rec_len);
-            kernel_printf("             name_len: %d\n", ex_dir_entry->name_len);
-            kernel_printf("                 type: %d\n", ex_dir_entry->file_type);
-            kernel_printf("                 name: %s\n", ex_dir_entry->name);
+            kernel_printf("     show ex_dir_entry: %d\n", ex_dir_entry->ino);
+            kernel_printf("               rec_len: %d\n", ex_dir_entry->rec_len);
+            kernel_printf("              name_len: %d\n", ex_dir_entry->name_len);
+            kernel_printf("                  type: %d\n", ex_dir_entry->file_type);
+            kernel_printf("                  name: %s\n", ex_dir_entry->name);
 #endif
 
             if (ex_dir_entry->rec_len == 0) {
@@ -55,7 +55,7 @@ void ext2_append_to_end(struct inode * inode, struct ext2_dir_entry_2 *in, u32 l
                 kernel_memcpy(data + 8, in->name, in->name_len);
                 dirt = 1;
 #ifdef DEBUG_EXT2
-                kernel_printf("      now at end\n");
+                kernel_printf("            now at end:\n");
 #endif
                 break;
             }
@@ -82,7 +82,7 @@ void ext2_append_to_end(struct inode * inode, struct ext2_dir_entry_2 *in, u32 l
 //        }
         if (dirt) {
 #ifdef DEBUG_EXT2
-            kernel_printf("       now at page: %d\n", i);
+            kernel_printf("%send ext2_append_to_end: dirt page: %d\n", quad1, i);
 #endif
             ext2_writepage(page);
             break;
@@ -151,7 +151,7 @@ u32 ext2_mkdir(struct inode * dir, struct dentry * dentry, u32 mode) {
     u32 err = 0;
 
 #ifdef DEBUG_EXT2
-    kernel_printf("now in ext2_mkdir()\n");
+    kernel_printf("%snow in ext2_mkdir()\n", quad1);
 #endif
 
     mode |= S_IFDIR;

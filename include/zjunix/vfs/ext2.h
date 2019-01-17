@@ -18,11 +18,14 @@
 #define 				EXT2_GROUPS_PER_SECT				16			// 每扇区快组数量：512/32=16
 #define                 EXT2_FIRST_INO                      11          // 普通ino从11开始使用
 
+#define					GROUP_DESC_INODE_NO  				0
+#define 				GROUP_DESC_GROUP_NO  				1
+
 // 文件类型
 enum {
-         EXT2_FT_UNKNOWN,     
-         EXT2_FT_REG_FILE,
-         EXT2_FT_DIR,   
+    EXT2_FT_UNKNOWN,
+    EXT2_FT_REG_FILE,
+    EXT2_FT_DIR,
 };
 
 // EXT2 文件系统信息汇总
@@ -184,7 +187,7 @@ u32 init_ext2(u32 base, u8 * DEV_NAME);
 u32 ext2_delete_inode(struct dentry *);
 u32 ext2_write_inode(struct inode *, struct dentry *);
 struct dentry * ext2_inode_lookup(struct inode *, struct dentry *, struct nameidata *);
-u32 ext2_create(struct inode *, struct dentry *, u32, struct nameidata *);
+u32 ext2_create(struct inode *, struct dentry *, u32);
 u32 ext2_readdir(struct file *, struct getdent *);
 
 u32 ext2_check_inode_bitmap(struct inode *);
@@ -212,6 +215,9 @@ u32 ext2_bmap(struct inode *, u32);
 
 // dir.c
 u32 ext2_mkdir(struct inode * dir, struct dentry * dentry, u32 mode);
+u32 ext2_add_link(struct dentry *dentry, struct inode *inode);
+u32 ext2_make_empty(struct inode * inode, struct inode * parent);
+void ext2_append_to_end(struct inode * inode, struct ext2_dir_entry_2 *in, u32 len);
 
 // super.c
 void ext2_write_super(struct ext2_base_information *sbi);

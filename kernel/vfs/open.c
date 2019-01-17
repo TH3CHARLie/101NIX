@@ -38,7 +38,7 @@ u32 open_namei(const u8 *pathname, u32 flag, u32 mode, struct nameidata *nd){
     }   
     
     // 设置了O_CREATE，设置LOOKUP_PARENT|LOOKUP_CREATE进行查找
-    if ( err = path_lookup(pathname, LOOKUP_PARENT | LOOKUP_CREATE, nd) )
+    if (err = path_lookup(pathname, LOOKUP_PARENT | LOOKUP_CREATE, nd))
         return err;
     
     // 现在nd里面有最后一个分量的目录对应的mnt和dentry对象，还有最后一个分量的信息
@@ -62,7 +62,7 @@ do_last:
     // 若所要创建的分量的确不存在于外存，那现在就创建好一个dentry了
     // 接下来需要新建一个inode，并且与这个dentry建立联系
 	if (!dentry->d_inode) {
-        err = dir->d_inode->i_op->create(dir->d_inode, dentry, mode, nd);
+        err = dir->d_inode->i_op->create(dir->d_inode, dentry, mode);
         dput(nd->dentry);
 		nd->dentry = dentry;
 		if (err)
@@ -100,7 +100,7 @@ struct dentry * __lookup_hash(struct qstr *name, struct dentry *base, struct nam
     if (!inode->i_ino)
         return 0;
 #ifdef DEBUG_EXT2
-    kernel_printf("now in __lookup_hash(%s) begin: \n", name->name);
+    kernel_printf("begin __lookup_hash(%s): \n", name->name);
 #endif
 
     if (nd) {
@@ -137,8 +137,13 @@ struct dentry * __lookup_hash(struct qstr *name, struct dentry *base, struct nam
 #endif
             dentry = new;   // 若相应的inode并没能找到，则需要进一步创建inode。dentry的引用计数暂时需要保持
         }
-        else
-			dput(new);
+        else {
+            dput(new);
+            if (!nd) {
+                kernel_printf("inode already exists!\n");
+                return ERR_PTR(-EINVAL);
+            }
+        }
 	}
 
 	return dentry;
@@ -396,20 +401,26 @@ u32 do_lookup(struct nameidata *nd, struct qstr *name, struct path *path) {
     struct vfsmount *mnt = nd->mnt;
 
 #ifdef DEBUG_VFS
-    kernel_printf("do_lookup(%s, %s): \n", nd->dentry->d_name.name, name->name);
+    kernel_printf("begin do_lookup(%s, %s): \n", nd->dentry->d_name.name, name->name);
 #endif
 
     // 在目录项高速缓存中寻找，查找文件名和父目录项相符的目录缓冲项
     struct condition cond;
     cond.cond1 = (void*) nd->dentry;
     cond.cond2 = (void*) name;
-    struct dentry* dentry = (struct dentry*) dcache->c_op->look_up(dcache, &cond); 
+    struct dentry* dentry = (struct dentry*)dcache->c_op->look_up(dcache, &cond);
     
     // 目录项高速缓冲（内存）没有，到外存中找
     if (!dentry)
         goto need_lookup;  
 
-done:  
+done:
+
+#ifdef DEBUG_VFS
+    kernel_printf("found in do_lookup(%s, %s): %x \n",
+                  nd->dentry->d_name.name, name->name, dentry);
+#endif
+
     // 找到，修改path的字段，返回无错误
     path->mnt = mnt;
     path->dentry = dentry;
@@ -433,7 +444,7 @@ struct dentry * real_lookup(struct dentry *parent, struct qstr *name, struct nam
     struct inode    *dir = parent->d_inode;
 
 #ifdef DEBUG_VFS
-    kernel_printf("     real_lookup(%s, %s): \n", parent->d_name.name, name->name);
+    kernel_printf("%sbegin real_lookup(%s, %s): \n", quad1, parent->d_name.name, name->name);
 #endif
 
     // 新建一个dentry对象，并且用parent和name初始化之
@@ -493,7 +504,7 @@ struct dentry * d_alloc(struct dentry *parent, const struct qstr *name) {
     struct dentry *dentry;
 
 #ifdef DEBUG_VFS
-    kernel_printf("now in d_alloc(%s, %s)\n", parent->d_name.name, name->name);
+    kernel_printf("%s[d_alloc] begin d_alloc(%s, %s)\n", quad3, parent->d_name.name, name->name);
 #endif
 
     dentry = (struct dentry *)kmalloc(sizeof(struct dentry));
@@ -532,7 +543,7 @@ struct dentry * d_alloc(struct dentry *parent, const struct qstr *name) {
     dcache->c_op->add(dcache, (void*)dentry);
 
 #ifdef DEBUG_VFS
-    kernel_printf("            [d_alloc] have a new dentry object: (%s, %s) %x\n",
+    kernel_printf("%s[d_alloc] have a new dentry object: (%s, %s) %x\n", quad3,
                   parent->d_name.name, name->name, dentry);
 #endif
 

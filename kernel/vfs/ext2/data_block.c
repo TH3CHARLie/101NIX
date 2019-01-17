@@ -1,11 +1,15 @@
 #include <zjunix/vfs/vfs.h>
 #include <zjunix/vfs/ext2.h>
 
-// 重置物理盘上的block为新block
+// 重置物理盘上的block为新block，将其清零
 void ext2_reset_block(struct ext2_base_information *sbi, u32 bno) {
     u8 buffer[4096];
     u32 err;
     u32 sect;
+
+#ifdef DEBUG_EXT2
+    kernel_printf("%sbegin ext2_reset_block(bno: %d)\n", quad2, bno);
+#endif
 
     // 接下来找到block数据所在的起始扇区，并写入相应的数据
     sect = sbi->ex_base + bno * (sbi->ex_blksize >> SECTOR_SHIFT);
@@ -37,7 +41,7 @@ u32 ext2_new_block(struct inode *inode) {
     es = sbi->sb.attr;
 
 #ifdef DEBUG_EXT2
-    kernel_printf("now in ext2_new_block(inode: %d)\n", inode->i_ino);
+    kernel_printf("%sbegin ext2_new_block(inode: %d)\n", quad2, inode->i_ino);
 #endif
 
     group = find_group_other(sbi, inode);
@@ -60,7 +64,7 @@ u32 ext2_new_block(struct inode *inode) {
             goto next_group;
         }
 
-        kernel_printf("      buffer: %x\n", buffer);
+        kernel_printf("%sbuffer: %x\n", quad3, buffer);
 
         // 查找是否有空位
         bno_pos = find_first_zero_bit(buffer, inode->i_blksize);
@@ -92,14 +96,14 @@ got_block:
     ext2_write_group_desc(desc, sbi, group, 0);
 
     // block位图和block更新
-    kernel_printf("      buffer: %x\n", buffer);
+    kernel_printf("%sbuffer: %x\n", quad3, buffer);
     set_bit(buffer, bno_pos);
     err = write_block(buffer, sect, 8);
 
     ext2_reset_block(sbi, bno);
 
 #ifdef DEBUG_EXT2
-    kernel_printf("now end ext2_new_block(inode: %d) -> bno: %d\n", inode->i_ino, bno);
+    kernel_printf("%send ext2_new_block(inode: %d) -> bno: %d\n", quad2, inode->i_ino, bno);
 #endif
 
 out:

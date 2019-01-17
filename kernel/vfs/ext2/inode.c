@@ -114,9 +114,9 @@ void ext2_reset_inode(struct ext2_base_information *sbi, u32 base, struct inode 
 
 // 二次散列法：找到一个有空位的组，返回组号
 u32 find_group_other(struct ext2_base_information *sbi, struct inode *parent) {
-    u32 parent_group;      // 父节点的组号
-    u32 ngroups;           // 组数量
     u32 group, i;
+    u32 ngroups;           // 组数量
+    u32 parent_group;      // 父节点的组号
     struct ext2_group_desc *desc;
 
     parent_group = (parent->i_ino - 1) / sbi->sb.attr->s_inodes_per_group;
@@ -203,7 +203,7 @@ struct inode *ext2_new_inode(struct inode *dir, u32 mode) {
 
     for (i = 0; i < sbi->s_groups_count; i++) {
         // 获得group组的组描述符
-        desc = ext2_get_group_desc(sbi, group, 1);
+        desc = ext2_get_group_desc(sbi, group, GROUP_DESC_GROUP_NO);
         if (desc == 0)
             goto next_group;
 
@@ -270,8 +270,7 @@ got_inode:
 //    set_bit(buffer, ino_pos);
 //    err = write_block(buffer, sect, 8);
 
-// TODO 完善底层信息
-//    spin_lock(sb_bgl_lock(sbi, group));
+
 //    if (S_ISDIR(mode)) {
 //        if (sbi->s_debts[group] < 255)
 //            sbi->s_debts[group]++;
@@ -281,8 +280,6 @@ got_inode:
 //        if (sbi->s_debts[group])
 //            sbi->s_debts[group]--;
 //    }
-//    spin_unlock(sb_bgl_lock(sbi, group));
-
 
     // 此处可以有文件所有者和文件权限的填写
 //    inode->i_uid = current->fsuid;

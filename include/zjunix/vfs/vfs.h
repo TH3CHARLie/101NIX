@@ -11,6 +11,12 @@
 //#define DEBUG_FAT32
 //#define DEBUG_SD
 
+static char *quad1 = "    ";
+static char *quad2 = "        ";
+static char *quad3 = "            ";
+static char *quad4 = "                ";
+static char *quad5 = "                    ";
+
 #define DPT_MAX_ENTRY_COUNT                     4
 #define DPT_ENTRY_LEN                           16
 #define SECTOR_SIZE                             512
@@ -266,7 +272,7 @@ struct file_operations {
 // 文件节点的操作函数
 struct inode_operations {
     // 在某一目录下，为与目录项相关的普通文件创建一个新的磁盘索引节点
-    u32 (*create) (struct inode *,struct dentry *, u32, struct nameidata *);
+    u32 (*create) (struct inode *,struct dentry *, u32);
     // 为包含在一个目录项对象中的文件名对应的索引节点查找目录
     struct dentry * (*lookup) (struct inode *,struct dentry *, struct nameidata *);
 	// 在某一目录下，创建一个新的目录
@@ -345,6 +351,9 @@ void reset_bit(u8 *, u32);
 u32 find_first_zero_bit(u8 *bitmap, u32 blksize);
 u32 log2(u32 word);
 
+u32 __intHash(u32, u32);
+u32 __stringHash(struct qstr *, u32);
+
 // usr.c
 u32 vfs_cat(const u8 *);
 u32 vfs_cd(const u8 *);
@@ -353,7 +362,7 @@ u32 vfs_rm(const u8 *);
 u32 vfs_mount(char *a, char *b, char *c, int mode);
 u32 vfs_umount(const u8 *dir_name);
 u32 sys_mkdir(const u8* path, u32 mode);
-u32 sys_touch(const u8* path, u32 mode);
+u32 sys_create(const u8* path, u32 mode);
 
 // filesystems.c
 struct file_system_type * register_filesystem(struct file_system_type * fs);

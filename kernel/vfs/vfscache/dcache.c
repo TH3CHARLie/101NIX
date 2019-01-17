@@ -28,7 +28,7 @@ void* dcache_look_up(struct cache *this, struct condition *cond) {
     name   = (struct qstr*)    (cond->cond2);
 
 #ifdef DEBUG_VFS
-    kernel_printf("[dcache]: dcache_look_up(%s, %s) len:(%d, %d)\n", parent->d_name.name, name->name,
+    kernel_printf("  [dcache] dcache_look_up(%s, %s) len:(%d, %d)\n", parent->d_name.name, name->name,
                   parent->d_name.len, name->len);
 #endif
 
@@ -42,14 +42,25 @@ void* dcache_look_up(struct cache *this, struct condition *cond) {
         if (!parent->d_op->compare(qstr, name) && tested->d_parent == parent)
             goto found;
     }
+
+#ifdef DEBUG_VFS
+    kernel_printf("  [dcache] dcache_look_up(%s, %s) not found\n", parent->d_name.name, name->name);
+#endif
+
     return 0;
 
     // 找到，更新链表和哈希表（提至最前），并返回
 found:
+
+#ifdef DEBUG_VFS
+    kernel_printf("  [dcache] dcache_look_up(%s, %s) found %x \n", parent->d_name.name, name->name, tested);
+#endif
+
     list_del(&(tested->d_hash));
     list_add(&(tested->d_hash), &(this->c_hashtable[hash]));
     list_del(&(tested->d_LRU));
     list_add(&(tested->d_LRU), &(this->c_LRU));
+
     return (void*)tested;
 }
 

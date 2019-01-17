@@ -243,7 +243,7 @@ struct vfsmount * do_kern_mount(const u8 *fstype, const u8 *dev_name) {
     type = get_fs_type(fstype);
 
 #ifdef DEBUG_VFS
-    kernel_printf("now in function do_kern_mount(%s, %s)\n", fstype, dev_name);
+    kernel_printf("%sbegin do_kern_mount(%s, %s)\n", quad1, fstype, dev_name);
 #endif
 
     if (!type)
@@ -263,7 +263,7 @@ struct vfsmount * do_kern_mount(const u8 *fstype, const u8 *dev_name) {
     }
 
 #ifdef DEBUG_VFS
-    kernel_printf("    get super_block: %s\n", sb->s_name);
+    kernel_printf("%sdo_kern_mount get super_block: %s\n", quad2, sb->s_name);
 #endif
 
     // 填充对应的信息

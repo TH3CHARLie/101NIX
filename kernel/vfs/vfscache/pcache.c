@@ -8,13 +8,16 @@ struct vfs_page * pcache_get_page(struct cache * pcache, struct inode * inode, u
     struct condition cond;
     struct vfs_page *page;
 
+#ifdef DEBUG_VFS
+    kernel_printf("  [pcache] begin pcache_get_page(ino: %d, page_no: %d)\n", inode->i_ino, page_no);
+#endif
+
     cur_page_no = inode->i_data.a_op->bmap(inode, page_no);
     if (cur_page_no == 0)
         return ERR_PTR(-EINVAL);
 
 #ifdef DEBUG_VFS
-    kernel_printf("now in pcache_get_page(ino: %d, page_no: %d)\n", inode->i_ino, page_no);
-    kernel_printf("                            cur_page_no: %d\n", cur_page_no);
+    kernel_printf("                      pcache_get_page cur_page_no: %d\n", cur_page_no);
 #endif
 
     cond.cond1 = (void *)(&cur_page_no);
@@ -44,21 +47,20 @@ void* pcache_look_up(struct cache *this, struct condition *cond) {
     page_num = *((u32*)(cond->cond1));
     inode = (struct inode *)(cond->cond2);
 
-    kernel_printf("  pcache_look_up: %d %d\n", page_num, inode->i_ino);
+    kernel_printf("  [pcache] begin pcache_look_up: %d %d\n", page_num, inode->i_ino);
 
     // 计算页地址对应的哈希值，找到那个哈希值对应页面的链表头
     hash = __intHash(page_num, this->c_tablesize);
-    current = &(this->c_hashtable[hash]);
-    start = current;
-    while (current->next != start) {
-        current = current->next;
-        tested = container_of(current, struct vfs_page, p_hash);
+    start = &(this->c_hashtable[hash]);
 
+    for (current = start->next; current != start; current = current->next) {
+        tested = container_of(current, struct vfs_page, p_hash);
         if (tested->p_location == page_num && tested->p_mapping->a_host == inode) {
             found = 1;
             break;
         }
     }
+
     if (found) {
         list_del(&(tested->p_hash));
         list_add(&(tested->p_hash), start);
@@ -72,7 +74,6 @@ void* pcache_look_up(struct cache *this, struct condition *cond) {
         list_add(&(tested->p_list), &((&inode->i_data)->a_cache));
         return (void*)tested;
     }
-    return 0;
 }
 
 // 往文件数据缓存中添加一个已分配的页面（创建已在其他地方完成）

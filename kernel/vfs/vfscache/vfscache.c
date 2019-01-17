@@ -5,7 +5,6 @@
 // 公用缓存
 struct cache * dcache;
 struct cache * pcache;
-struct cache * icache;
 
 // 缓存操作函数
 struct cache_operations dentry_cache_operations = {
@@ -43,10 +42,6 @@ u32 init_cache() {
     return 0;
 
 init_cache_err:
-    if (icache) {
-        kfree(icache->c_hashtable);
-        kfree(icache);
-    }
     if (dcache) {
         kfree(dcache->c_hashtable);
         kfree(dcache);
@@ -99,4 +94,36 @@ void release_inode(struct inode * inode) {
     list_del(&(inode->i_dentry));
     kfree(inode->i_data.a_page);
     kfree(inode);
+}
+
+// 输出当前存在缓存中的内容
+void show_cache() {
+    int i;
+    struct list_head    *p;
+    struct list_head    *start;
+    struct dentry       *dentry;
+    struct vfs_page     *page;
+
+    kernel_printf("%s[VFS Cache]\n", quad1);
+
+    kernel_printf("%s[dcache]\n", quad2);
+    kernel_printf("%ssize: %d\n", quad3, dcache->c_size);
+
+    start = &dcache->c_LRU;
+    for (p = start->next; p != start; p = p->next) {
+        dentry = container_of(p, struct dentry, d_LRU);
+        kernel_printf("%s%s %d\n%sinode %x: sb: %s ino: %d\n", quad4, dentry->d_name.name, dentry->d_name.len,
+                      quad5, dentry->d_inode, dentry->d_inode->i_sb->s_name, dentry->d_inode->i_ino);
+    }
+
+    kernel_printf("%s[pcache]\n", quad2);
+    kernel_printf("%ssize: %d\n", quad3, pcache->c_size);
+
+    start = &pcache->c_LRU;
+    for (p = start->next; p != start; p = p->next) {
+        page = container_of(p, struct vfs_page, p_LRU);
+        kernel_printf("%sinode: %d read_page_no: %d\n", quad4,
+                      page->p_mapping->a_host->i_ino, page->p_location);
+    }
+
 }

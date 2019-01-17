@@ -8,7 +8,7 @@ struct vfsmount * alloc_vfsmnt(const u8 *name) {
     struct vfsmount *mnt;
 
 #ifdef DEBUG_VFS
-    kernel_printf("now in alloc_vfsmnt(%s)\n", name);
+    kernel_printf("%s[alloc] alloc_vfsmnt(%s)\n", quad3, name);
 #endif
 
     mnt = (struct vfsmount *)kmalloc(sizeof(struct vfsmount));
@@ -31,7 +31,7 @@ struct vfsmount * lookup_mnt(struct vfsmount *mnt, struct dentry *dentry) {
     struct vfsmount *p, *found = 0;
 
 #ifdef DEBUG_VFS
-    kernel_printf("now_in_lookup_mnt\n");
+    kernel_printf("%slookup_mnt\n", quad2);
 #endif
 
     // 在字段为hash的双向链表寻找。这里有所有已安装的文件系统的对象

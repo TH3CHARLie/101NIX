@@ -58,19 +58,12 @@ u32 init_cache();
 void cache_init(struct cache *, u32, u32);
 u32 cache_is_full(struct cache *);
 
-u32 __intHash(u32, u32);
-u32 __stringHash(struct qstr *, u32);
-
 // dcache.c
 void* dcache_look_up(struct cache *, struct condition *);
 void dcache_add(struct cache *, void *);
 void dcache_put_LRU(struct cache *);
 
-// void* icache_look_up(struct cache *, struct condition *);
-// void icache_add(struct cache *, void *);
-// void icache_put_LRU(struct cache *);
-// void icache_write_back(void *);
-
+// pcache.c
 struct vfs_page * pcache_get_page(struct cache * pcache, struct inode * inode, u32 page_no);
 void* pcache_look_up(struct cache *, struct condition *);
 void pcache_add(struct cache *, void *);
@@ -78,15 +71,13 @@ void pcache_put_LRU(struct cache *);
 void pcache_write_back(void *);
 
 struct dentry * dget(struct dentry *);
-//void dget(struct dentry *);
 void dput(struct dentry *);
 
 void release_dentry(struct dentry *);
 void release_inode(struct inode *);
 void release_page(struct vfs_page *);
 
-//// utils.c
-//u32 read_block(u8 *, u32, u32);
-//u32 write_block(u8 *, u32, u32);
+void show_cache();
+
 
 #endif

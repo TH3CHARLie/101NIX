@@ -12,7 +12,48 @@ extern struct cache                     * pcache;
 extern struct dentry                    * pwd_dentry;
 extern struct vfsmount                  * pwd_mnt;
 
-// 以下为Power shell 的接口
+// 调用挂载的接口
+u32 vfs_mount(char *a, char *b, char *c, int mode) {
+    do_mount(a, b, c, mode);
+}
+
+// 调用卸载的接口
+u32 vfs_umount(const u8 *dir_name) {
+    do_umount(dir_name);
+}
+
+// 调用创建目录的接口，第一个参数是父目录，第二个参数是要新建的目录
+u32 vfs_mkdir(struct inode *dir, struct dentry *dentry, int mode) {
+
+    if (!dir->i_op || !dir->i_op->mkdir)
+        return -EPERM;
+
+#ifdef DEBUG_VFS
+    kernel_printf("now in vfs_mkdir(): dentry: %s\n", dentry->d_name.name);
+#endif
+
+    mode &= S_ISVTX;
+    u32 err = dir->i_op->mkdir(dir, dentry, mode);
+
+    return err;
+}
+
+// 调用创建文件的接口，第一个参数是父目录，第二个参数是要新建的目录
+u32 vfs_create(struct inode *dir, struct dentry *dentry, int mode) {
+
+    if (!dir->i_op || !dir->i_op->create)
+        return -EPERM;
+
+#ifdef DEBUG_VFS
+    kernel_printf("now in vfs_create(): dentry: %s\n", dentry->d_name.name);
+#endif
+
+    mode &= S_ISVTX;
+    u32 err = dir->i_op->create(dir, dentry, mode);
+
+    return err;
+}
+
 // 输出文件的内容
 u32 vfs_cat(const u8 *path){
     u8 *buf;
@@ -57,12 +98,9 @@ u32 vfs_cd(const u8 *path) {
 
     // 调用VFS提供的查找接口
     err = path_lookup(path, LOOKUP_DIRECTORY, &nd);
-    if (err == -ENOENT) {
-        kernel_printf("No such directory!\n");
-        return err;
-    }
-    else if (IS_ERR_VALUE(err)) {
-        return err;
+    if (IS_ERR_VALUE(err)) {
+        kernel_printf_vfs_errno(err);
+        return 0;
     }
 
     // 若成功则改变相应的dentry和mnt
@@ -138,33 +176,6 @@ u32 vfs_rm(const u8 *path){
     dentry->d_inode = 0;
 
     return 0;
-}
-
-// 调用挂载的接口
-u32 vfs_mount(char *a, char *b, char *c, int mode) {
-    do_mount(a, b, c, mode);
-}
-
-// 调用卸载的接口
-u32 vfs_umount(const u8 *dir_name) {
-    do_umount(dir_name);
-}
-
-// 调用创建目录的接口，第一个参数是父目录，第二个参数是要新建的目录
-u32 vfs_mkdir(struct inode *dir, struct dentry *dentry, int mode) {
-
-    if (!dir->i_op || !dir->i_op->mkdir)
-        return -EPERM;
-
-#ifdef DEBUG_VFS
-    kernel_printf("now in vfs_mkdir()\n");
-    kernel_printf("     dentry: %s\n", dentry->d_name.name);
-#endif
-
-    mode &= S_ISVTX;
-    u32 err = dir->i_op->mkdir(dir, dentry, mode);
-
-    return err;
 }
 
 // 调用namei里的__lookup_hash
@@ -250,7 +261,7 @@ u32 sys_mkdir(const u8* path, u32 mode) {
 
 // 创建文件的用户接口
 // 首先会解析路径，然后生成新的dentry，交给vfs_touch处理
-u32 sys_touch(const u8* path, u32 mode) {
+u32 sys_create(const u8* path, u32 mode) {
     u32 err;
 
     struct dentry *dentry;
@@ -263,14 +274,14 @@ u32 sys_touch(const u8* path, u32 mode) {
     }
 
 #ifdef DEBUG_VFS
-    kernel_printf("[sys_touch]: now get path:\n");
+    kernel_printf("[sys_create]: now get path:\n");
     kernel_printf("     nd_dentry (father): %s\n", nd.dentry->d_name.name);
     kernel_printf("     nd_last   (newdir): %s\n\n", nd.last.name);
 #endif
 
     dentry = lookup_create(&nd, 1);
     if (!IS_ERR(dentry)) {
-        err = vfs_mkdir(nd.dentry->d_inode, dentry, mode);
+        err = vfs_create(nd.dentry->d_inode, dentry, mode);
         if (err)
             kernel_printf_vfs_errno(err);
         dput(dentry);
@@ -289,6 +300,8 @@ u32 may_delete(struct inode *dir, struct dentry * victim, int isdir) {
 
     if (!victim->d_inode)
         return -ENOENT;
+
+//    BUG_ON(victim->d_parent->d_inode != dir);
 //
 //    error = permission(dir,MAY_WRITE | MAY_EXEC, NULL);
 //    if (error)
@@ -309,7 +322,6 @@ u32 may_delete(struct inode *dir, struct dentry * victim, int isdir) {
 //        return -ENOENT;
 //    if (victim->d_flags & DCACHE_NFSFS_RENAMED)
 //        return -EBUSY;
-
     return 0;
 }
 

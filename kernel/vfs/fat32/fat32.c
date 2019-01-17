@@ -180,11 +180,6 @@ u32 init_fat32(u32 base){
     INIT_LIST_HEAD(&(root_inode->i_hash));
     INIT_LIST_HEAD(&(root_inode->i_LRU));
 
-    // icache->c_op->add(icache, (void *)root_inode);
-
-     kernel_printf("here ok1\n");
-     // return -1;
-    
     // 与root_dentry关联
     root_dentry->d_inode = root_inode;
     list_add(&(root_dentry->d_alias), &(root_inode->i_dentry));
@@ -213,9 +208,6 @@ u32 init_fat32(u32 base){
         root_inode->i_data.a_page[i] = next_clu;
         next_clu = read_fat(root_inode, next_clu);
     }
-
-    kernel_printf("here ok1\n");
-    //     return -1;
 
     // 预先读取根目录的数据
     for (i = 0; i < root_inode->i_blocks; i++){
@@ -651,7 +643,7 @@ struct dentry* fat32_inode_lookup(struct inode *dir, struct dentry *dentry, stru
 }
 
 
-u32 fat32_create(struct inode *dir, struct dentry *dentry, u32 mode, struct nameidata *nd)
+u32 fat32_create(struct inode *dir, struct dentry *dentry, u32 mode)
 {
     return 0;
 }

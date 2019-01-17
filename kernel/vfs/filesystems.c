@@ -47,10 +47,10 @@ struct file_system_type * register_filesystem(struct file_system_type * fs) {
 
     // 如果已经注册，则返回错误代码；否则存入
     if (*p) {
-        kernel_printf("    [WARN]: File system has already registered\n");
+        kernel_printf("  [VFS WARN]: File system has already registered\n");
     }
     else {
-        kernel_printf("    [ OK ]: Successfully registered\n");
+        kernel_printf("  [VFS OK]: Successfully registered\n");
         *p = fs;
     }
     res = *p;

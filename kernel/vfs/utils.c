@@ -8,7 +8,7 @@
 // 从addr的绝对扇区地址开始读count个扇区的数据
 u32 read_block(u8 *buf, u32 addr, u32 count) {
 #ifdef DEBUG_SD
-    kernel_printf("                                  sd_read_block: %d %d\n", addr, count);
+    kernel_printf("                                sd_read_block: %x %d\n", addr, count);
 #endif
     return sd_read_block(buf, addr, count);
 }
@@ -16,7 +16,7 @@ u32 read_block(u8 *buf, u32 addr, u32 count) {
 // 从addr的绝对扇区地址开始写count个扇区的数据
 u32 write_block(u8 *buf, u32 addr, u32 count) {
 #ifdef DEBUG_SD
-    kernel_printf("                                  sd_write_block: %d %d\n", addr, count);
+    kernel_printf("                                  sd_write_block: %x %d\n", addr, count);
 #endif
     return sd_write_block(buf, addr, count);
 }
@@ -143,7 +143,6 @@ u32 find_first_zero_bit(u8 *bitmap, u32 blksize) {
 
     return -EINVAL;
 }
-
 
 // 以下为哈希函数
 // 为整数值计算哈希值

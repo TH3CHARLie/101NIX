@@ -55,10 +55,10 @@ u32 init_vfs(){
     log(LOG_OK, "init_fat32()");
 
     u8 DEV_NAME[10] = "/dev/sda0";
-    for (i = 1; i < MBR->m_count; i++) {
+    for (i = 1; i < MBR->m_count; i++) {        // 依次读取剩下的分区，分配设备名，注册文件系统
         DEV_NAME[8] = '0' + i + 1;
         if (MBR->m_type[i] == PARTITION_TYPE_FAT32) {
-
+            // 暂时未处理fat32
         } else if (MBR->m_type[i] == PARTITION_TYPE_EXT2) {
             err = init_ext2(MBR->m_base[i], DEV_NAME);
             if (IS_ERR_VALUE(err)) {
@@ -109,15 +109,15 @@ u32 vfs_read_MBR(){
         ptr_lba  += DPT_ENTRY_LEN;
         ptr_type += DPT_ENTRY_LEN;
 #ifdef DEBUG_VFS
-        kernel_printf("   MBR[%d]: base: %d %d\n", MBR->m_count, part_lba, part_type);
+        kernel_printf("  MBR[%d]: base: %d type: %x\n", MBR->m_count, part_lba, part_type);
 #endif
     }
 
     if (MBR->m_count == 0) {
-        kernel_printf("[MBR ERROR]: Empty partition\n");
+        kernel_printf("[[MBR ERROR]]: Empty partition\n");
         goto vfs_read_MBR_err;
     } else if (MBR->m_type[0] != PARTITION_TYPE_FAT32) {
-        kernel_printf("[MBR ERROR]: First partition must be FAT32\n");
+        kernel_printf("[[MBR ERROR]]: First partition must be FAT32\n");
         goto vfs_read_MBR_err;
     }
 
@@ -146,37 +146,37 @@ u32 init_file_systems() {
 // 根据不同的错误输出错误信息
 void kernel_printf_vfs_errno(u32 err){
     if (err == -EPERM) {
-        kernel_printf("[VFS ERROR]: Operation not permitted\n");
+        kernel_printf("[[VFS ERROR]]: Operation not permitted\n");
     } else if (err == -ENOENT) {
-        kernel_printf("[VFS ERROR]: No such file or directory\n");
+        kernel_printf("[[VFS ERROR]]: No such file or directory\n");
     } else if (err == -EIO) {
-        kernel_printf("[VFS ERROR]: I/O error\n");
+        kernel_printf("[[VFS ERROR]]: I/O error\n");
     } else if (err == -EBADF) {
-        kernel_printf("[VFS ERROR]: Bad file number\n");
+        kernel_printf("[[VFS ERROR]]: Bad file number\n");
     } else if (err == -ENOMEM) {
-        kernel_printf("[VFS ERROR]: Out of memory\n");
+        kernel_printf("[[VFS ERROR]]: Out of memory\n");
     } else if (err == -EFAULT) {
-        kernel_printf("[VFS ERROR]: Bad address\n");
+        kernel_printf("[[VFS ERROR]]: Bad address\n");
     } else if (err == -EBUSY) {
-        kernel_printf("[VFS ERROR]: Device or resource busy\n");
+        kernel_printf("[[VFS ERROR]]: Device or resource busy\n");
     } else if (err == -EEXIST) {
-        kernel_printf("[VFS ERROR]: File exists\n");
+        kernel_printf("[[VFS ERROR]]: File exists\n");
     } else if (err == -ENODEV) {
-        kernel_printf("[VFS ERROR]: No such device\n");
+        kernel_printf("[[VFS ERROR]]: No such device\n");
     } else if (err == -ENOTDIR) {
-        kernel_printf("[VFS ERROR]: Not a directory\n");
+        kernel_printf("[[VFS ERROR]]: Not a directory\n");
     } else if (err == -EISDIR) {
-        kernel_printf("[VFS ERROR]: Is a directory\n");
+        kernel_printf("[[VFS ERROR]]: Is a directory\n");
     } else if (err == -EINVAL) {
-        kernel_printf("[VFS ERROR]: Invalid argument\n");
+        kernel_printf("[[VFS ERROR]]: Invalid argument\n");
     } else if (err == -ENFILE) {
-        kernel_printf("[VFS ERROR]: File table overflow\n");
+        kernel_printf("[[VFS ERROR]]: File table overflow\n");
     } else if (err == -ENOSPC) {
-        kernel_printf("[VFS ERROR]: No space left on device\n");
+        kernel_printf("[[VFS ERROR]]: No space left on device\n");
     } else if (err == -ELOOP) {
-        kernel_printf("[VFS ERROR]: Too many symbolic links encountered\n");
+        kernel_printf("[[VFS ERROR]]: Too many symbolic links encountered\n");
     } else {
-        kernel_printf("[VFS ERROR]: Unknown error\n");
+        kernel_printf("[[VFS ERROR]]: Unknown error\n");
     }
 }
 
