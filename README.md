@@ -1,24 +1,39 @@
-# ZJUNIX
+# 101NIX
 
 ## 简介
 
-![ZJUNIX Experiments](https://img.shields.io/badge/ZJUNIX-Experiments-blue.svg)
+101NIX 是浙江大学 2018-2019 秋冬学期《操作系统》课程的课程作业，是一个基于课程组提供的 ZJUNIX 进行修改的简易操作系统，运行于 Sword IV 开发板上。
 
-ZJUNIX 是一个精简的操作系统内核，专门用于运行在自行定制的 FPGA 硬件上 (在 FPGA 上实现一个 SOC 并运行操作系统)，实现**在自己设计的计算机上运行自己的操作系统**的梦想
+## 特性
 
-本代码仓库是 ZJUNIX 的实验代码仓库，用于配合配套书籍来开展实验。在后续更新中，本仓库仅进行 BUG 修复，不进行功能性的更新
+101NIX 基于原版 ZJUNIX 在进程部分、内存部分、文件部分上做出了较大改进，具体如下：
+
+- 进程部分：重写进程模块，实现了完全公平调度、信号量、用户程序加载运行
+- 内存部分：实现了用户进程的虚拟内存地址空间、进程间内存保护、用户内存系统调用、基于共享内存的进程间通信、记录型信号量机制、TLB模块，以及修复了 ZJUNIX 原版物理内存管理系统中的部分问题
+- 文件部分：实现了 ext2 文件系统、重构缓存系统、基于 VFS 的分区挂载
+
+## 分工
+
+101NIX 是小组作业，小组人员群策群力，分工合作，实现了预期的目标，具体分工如下：
+
+- 进程部分: yxd
+- 内存部分：zzh
+- 文件部分：yjc
+- 整合与调试：全体
 
 ## 使用教程简介
+
+注：此部分与原版 ZJUNIX 一致
 
 ### 编译
 
 1. 下载安装 [Mips Toolchain](https://community.imgtec.com/developers/mips/tools/codescape-mips-sdk/)
-1. 设置工具链路径
+2. 设置工具链路径
     - 在程序根目录下的 config/tools.conf 中修改 TOOLCHAIN_DIR 为编译器二进制文件所在目录
-1. 设置 make 路径
+3. 设置 make 路径
     - 如果使用的是 Windows 系统，则修改 config/tools.conf 中的 MAKE 为 make 可执行文件所在路径
     - 如果使用的是 Linux 系统，则注释该行
-1. 在根目录下执行 make 命令即可编译得到 kernel.bin ，也就是可载入的操作系统内核文件
+4. 在根目录下执行 make 命令即可编译得到 kernel.bin ，也就是可载入的操作系统内核文件
     - make all / make objcopy 与直接执行 make 效果相同
     - make disassembly 可获得反编译文件 kernel.txt
     - make clean 可以清理所有中间文件，包括子目录下的所有中间文件
